@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/growlf/djangocms-agent",
+  "defaults": {
+    "author": {
+      "name": "growlf",
+      "url": "https://github.com/growlf"
+    },
+    "homepage": "https://github.com/growlf/djangocms-agent",
+    "license": "MIT",
+    "category": "Developer Tools"
+  },
+  "plugins": [
+    {
+      "id": "djangocms-agent",
+      "version": "0.1.0",
+      "description": "DjangoCMS specialist agent for Claude Code and OpenCode. Covers page trees, placeholders, templates, plugins, admin, middleware, and migrations for django-cms 4.x.",
+      "package": "plugins/djangocms-agent",
+      "capability": {
+        "kind": "skill",
+        "canonical_path": "skills/djangocms-agent/SKILL.md",
+        "package_path": "skills/djangocms-agent/SKILL.md"
+      },
+      "hosts": [
+        "claude",
+        "opencode",
+        "codex",
+        "cursor",
+        "agent-skills"
+      ],
+      "keywords": [
+        "django",
+        "django-cms",
+        "djangocms",
+        "cms",
+        "placeholders",
+        "page-tree",
+        "cms-plugins"
+      ],
+      "interface": {
+        "display_name": "DjangoCMS Agent",
+        "short_description": "DjangoCMS specialist agent.",
+        "long_description": "Expert guidance for django-cms 4.x: page trees, placeholders, templates, content plugins, admin customization, middleware, and migrations.",
+        "default_prompts": [
+          "Create a new CMS page with placeholders.",
+          "Configure CMS_TEMPLATES for my project.",
+          "Write a custom CMS content plugin.",
+          "Fix a CMS migration issue."
+        ]
+      }
+    },
+    {
+      "id": "djangocms-reviewer",
+      "version": "0.1.0",
+      "description": "Reviews DjangoCMS and Django code for correctness, CMS best practices, placeholder usage, and common anti-patterns.",
+      "package": "plugins/djangocms-reviewer",
+      "capability": {
+        "kind": "hybrid",
+        "canonical_path": "skills/djangocms-reviewer/SKILL.md",
+        "package_path": "skills/djangocms-reviewer/SKILL.md"
+      },
+      "hosts": [
+        "claude",
+        "opencode",
+        "codex",
+        "agent-skills"
+      ],
+      "keywords": [
+        "django",
+        "django-cms",
+        "code-review",
+        "python",
+        "cms"
+      ],
+      "interface": {
+        "display_name": "DjangoCMS Reviewer",
+        "short_description": "DjangoCMS code review.",
+        "long_description": "Reviews Django and DjangoCMS code for correctness, CMS best practices, placeholder usage, and common anti-patterns.",
+        "default_prompts": [
+          "Review my recent DjangoCMS changes.",
+          "Check this CMS template for placeholder issues.",
+          "Refine this custom CMS plugin."
+        ]
+      },
+      "overrides": {
+        "claude": {
+          "agent_path": "agents/djangocms-reviewer.md",
+          "model": "opus",
+          "description": "Reviews Django and DjangoCMS code for correctness and CMS best practices. Use after CMS code changes."
+        }
+      }
+    }
+  ]
+}
