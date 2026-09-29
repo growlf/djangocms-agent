@@ -105,6 +105,82 @@ CMS_TOOLBAR_REQUIRE_SUPERUSER = True  # Require superuser for toolbar
 CMS_TOOLBAR_URL__EDIT_ON = 'edit'  # ?edit parameter to enable edit mode
 ```
 
+
+### DjangoCMS Versioning (built-in draft workflow)
+```python
+# In pyproject.toml or requirements.txt
+dependencies = [
+    "django-cms>=5.1,<5.2",
+    "djangocms-versioning",
+    "djangocms-alias",
+    "djangocms-link",
+    "djangocms-picture",
+    "djangocms-text-ckeditor",
+]
+```
+Versioning enables: unpublished drafts, version numbers, content approval workflows.
+
+### admindocs (auto-generated admin documentation)
+```python
+# In INSTALLED_APPS
+'django.contrib.admindocs',
+
+# In urls.py
+path('admin/docs/', include('django.contrib.admindocs.urls')),
+```
+Docs available at `/admin/docs/`. Requires `docutils` (included with Django).
+
+### DjangoDebugToolbar (development only)
+```python
+# In pyproject.toml
+dependencies = ["django-debug-toolbar"]
+
+# In INSTALLED_APPS (at top!)
+INSTALLED_APPS = [
+    'debug_toolbar',  # Must be before other apps
+    ...
+]
+
+# In MIDDLEWARE (at top!)
+MIDDLEWARE = [
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    ...
+]
+
+# In urls.py
+import sys
+if 'debug_toolbar' in INSTALLED_APPS:
+    import socket
+    hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
+    INTERNAL_IPS = [ip[:-1] + '1' for ip in ips] + ['127.0.0.1', '10.0.2.2']
+    urlpatterns += [
+        path('__debug__/', include('debug_toolbar.urls')),
+    ]
+```
+Toolbar only shows for INTERNAL_IPS. Safe for production.
+
+### Default CMS template (generic theme with dynamic menu)
+```python
+# In settings.py
+CMS_TEMPLATES = [
+    ('default', 'Default'),
+]
+
+CMS_PLACEHOLDER_CONF = {
+    'content': {
+        'plugins': ['TextPlugin', 'PicturePlugin', 'LinkPlugin', 'AliasPlugin'],
+        'name': 'Content',
+        'extra_context': {'width': False},
+    },
+    'sidebar': {
+        'plugins': ['LinkPlugin', 'PicturePlugin', 'AliasPlugin'],
+        'name': 'Sidebar',
+        'extra_context': {'width': False},
+    },
+}
+```
+
+## When to Use
 ### Root URL redirect (avoid admin redirect)
 ```python
 # In urls.py
