@@ -20,7 +20,7 @@ description: >-
 license: MIT
 metadata:
   author: growlf
-  version: "0.2.0"
+  version: "0.3.0"
   compatibility: claude-code, opencode, codex, cursor
   stack:
     python: "3.12|3.13"
@@ -64,6 +64,59 @@ uv run python scripts/visual_check.py http://localhost:8000/home/ /tmp/after.png
 - `scripts/visual_check.py` — takes screenshots and reports visible content
 - Output saved to `/tmp/cms-check.png` (or specify path)
 - Reports HTTP status, visible text, and common error patterns
+
+## PROJECT SETUP (DEFAULT SETTINGS)
+
+When creating a new DjangoCMS project, always include these settings in `settings.py`:
+
+### TEMPLATES (with app_directories loader)
+```python
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [BASE_DIR / 'templates'],
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+                'sekizai.context_processors.sekizai',
+                'cms.context_processors.cms_settings',
+            ],
+            'loaders': [
+                'django.template.loaders.filesystem.Loader',
+                'django.template.loaders.app_directories.Loader',  # REQUIRED for CMS plugins
+            ],
+        },
+    },
+]
+```
+
+### X-Frame-Options (for CMS toolbar)
+```python
+X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allows CMS toolbar iframe to load
+```
+
+### CMS Toolbar settings
+```python
+CMS_TOOLBAR_ANONYMOUS_EDIT = False  # Only show toolbar for logged-in users
+CMS_TOOLBAR_REQUIRE_SUPERUSER = True  # Require superuser for toolbar
+CMS_TOOLBAR_URL__EDIT_ON = 'edit'  # ?edit parameter to enable edit mode
+```
+
+### Root URL redirect (avoid admin redirect)
+```python
+# In urls.py
+def root_redirect(request):
+    return redirect('/home/')
+
+urlpatterns = [
+    path('', root_redirect, name='root'),
+    path('admin/', admin.site.urls),
+    path('', include('cms.urls')),
+]
+```
 
 ## When to Use
 
