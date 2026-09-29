@@ -3,10 +3,11 @@ name: djangocms-agent
 description: >-
   DjangoCMS specialist agent for django-cms 5.x. Handles page trees,
   placeholders, templates, content plugins, admin customization, middleware,
-  and migrations. Includes django-ai-plugins and agentic-django as Django
-  foundation dependencies. Use for any DjangoCMS work: creating pages with
-  placeholders, building custom CMS plugins, configuring CMS settings,
-  writing CMS migrations, and customizing the CMS admin.
+  and migrations. REQUIRES visual validation after every change.
+  Includes django-ai-plugins and agentic-django as Django foundation dependencies.
+  Use for any DjangoCMS work: creating pages with placeholders, building custom
+  CMS plugins, configuring CMS settings, writing CMS migrations, and customizing
+  the CMS admin.
   
   This agent credits and builds on:
   - vintasoftware/django-ai-plugins (MIT) for multi-host agent structure
@@ -19,7 +20,7 @@ description: >-
 license: MIT
 metadata:
   author: growlf
-  version: "0.1.0"
+  version: "0.2.0"
   compatibility: claude-code, opencode, codex, cursor
   stack:
     python: "3.12|3.13"
@@ -32,6 +33,37 @@ metadata:
 > **DjangoCMS specialist** — handles the entire django-cms 5.x stack.
 >
 > **Credit:** Built on patterns from [vintasoftware/django-ai-plugins](https://github.com/vintasoftware/django-ai-plugins) (MIT) and [MohamedMandour10/agentic-django](https://github.com/MohamedMandour10/agentic-django).
+
+## VISUAL VALIDATION (MANDATORY)
+
+**Never make CMS changes without visual confirmation.** The agent must validate
+every change by taking a screenshot and analyzing visible content.
+
+### Before making changes:
+```bash
+# Start the dev server if not running
+uv run python manage.py runserver 0.0.0.0:8000 &
+
+# Take baseline screenshot
+uv run python scripts/visual_check.py http://localhost:8000/home/ /tmp/before.png
+```
+
+### After making changes:
+```bash
+# Take validation screenshot
+uv run python scripts/visual_check.py http://localhost:8000/home/ /tmp/after.png
+
+# Report findings:
+# - What changed visually
+# - Any errors detected (404, template errors, server errors)
+# - What's missing (empty placeholders, missing menu)
+# - What's working (content rendered, template loaded)
+```
+
+### Visual check script locations:
+- `scripts/visual_check.py` — takes screenshots and reports visible content
+- Output saved to `/tmp/cms-check.png` (or specify path)
+- Reports HTTP status, visible text, and common error patterns
 
 ## When to Use
 
@@ -87,7 +119,7 @@ These are captured from production experience with Django + DjangoCMS integratio
 - **CMS page lookup** — slugs live in `PageUrl`: `PageUrl.objects.get(slug=slug).page`
 - **Re-pointing page templates** — use `PageContent.objects.filter(page=page, language="en-us").first().template`
 - **`{% render_block %}`** — cannot live inside a `{% block %}` (swallows following `{% endblock %}`)
-- **`{% show_menu %}`** — requires `menus.context_processors.menus` which may not be available
+- **`{% show_menu %}`** — requires `{% load menu_tags %}` (not loaded by `cms_tags` alone)
 - **`{% %}` inside `{# #}` comments** — tokenizes/parse-fails; keep DTL comments free of `{% %}`
 
 ## CMS 5.x Notes
@@ -95,7 +127,7 @@ These are captured from production experience with Django + DjangoCMS integratio
 - **`CMS_CONFIRM_VERSION4` removed** — this setting was only needed for the CMS 4.x migration path from 3.x. Not needed in 5.x.
 - **`CMS_DEFAULT_INTENT`** — still controls the default publish state for `create_page` (default: `"draft"`)
 - **sekizai** — still requires `{% render_block "css" %}` (sekizai 4.x+ syntax); `{% slot %}` is not used
-- **menus** — the `menus.context_processors.menus` processor may not be available in all builds; `{% show_menu %}` will not work without it
+- **menus** — the `menus.context_processors.menus` processor does not exist; use `{% show_menu %}` with `{% load menu_tags %}`
 
 ## References
 
