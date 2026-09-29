@@ -1,7 +1,7 @@
 # DjangoCMS Agent
 
 > A DjangoCMS specialist agent for Claude Code and OpenCode.
-> Covers page trees, placeholders, templates, plugins, admin, middleware, and migrations for django-cms 4.x.
+> Covers page trees, placeholders, templates, plugins, admin, middleware, and migrations for django-cms 5.x.
 
 **Credit & dependencies:**
 
@@ -9,16 +9,24 @@
 - Django architecture patterns inspired by [MohamedMandour10/agentic-django](https://github.com/MohamedMandour10/agentic-django).
 - Core framework: [django-cms/django-cms](https://github.com/django-cms/django-cms) (BSD 3-Clause).
 
+## Stack
+
+| Component | Version |
+|-----------|---------|
+| Python | 3.12 or 3.13 |
+| Django | 5.2 LTS |
+| django-cms | 5.1.3 |
+
 ## What It Does
 
-This agent provides expert guidance on the entire django-cms 4.x stack:
+This agent provides expert guidance on the entire django-cms 5.x stack:
 
 - **Page trees** — `create_page`, `PageUrl`, `PageContent`, slugs, language handling
 - **Placeholders** — Placeholder regions, `render_block`, sekizai integration, content plugins
 - **Templates** — CMS template structure, `{% load cms_tags %}`, `{% show_menu %}`, nav
 - **Content plugins** — Writing custom CMS plugins, apphooks, CMS config
 - **Admin** — CMS admin customization, page admin, plugin registration
-- **Middleware** — Middleware ordering, `CMS_CONFIRM_VERSION4`, app settings
+- **Middleware** — Middleware ordering, CMS settings, language config
 - **Migrations** — Zero-downtime CMS migrations, data migrations, version upgrades
 
 ## Installation
@@ -57,13 +65,14 @@ git submodule add https://github.com/growlf/djangocms-agent .agents/skills/djang
 | `djangocms-templates` | CMS templates, sekizai, menu rendering, nav |
 | `djangocms-admin` | Admin customization, page admin, plugin registration |
 | `djangocms-plugins` | Custom plugin models, render methods, CMS config, apphooks |
-| `djangocms-middleware` | Middleware ordering, app settings, CMS_CONFIRM_VERSION4 |
+| `djangocms-middleware` | Middleware ordering, app settings, CMS configuration |
 | `djangocms-migration` | Zero-downtime CMS migrations, data migrations, version upgrades |
 | `djangocms-reviewer` | Code review for DjangoCMS projects |
 
 ## Usage
 
 Once installed, the agent triggers automatically when CMS-related context is detected:
+
 - CMS template files (`base_cms.html`, `page.html`)
 - `cms/urls.py`, `cms.py` settings
 - `Page`, `Placeholder`, `create_page` usage in Python code

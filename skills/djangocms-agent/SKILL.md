@@ -1,7 +1,7 @@
 ---
 name: djangocms-agent
 description: >-
-  DjangoCMS specialist agent for django-cms 4.x. Handles page trees,
+  DjangoCMS specialist agent for django-cms 5.x. Handles page trees,
   placeholders, templates, content plugins, admin customization, middleware,
   and migrations. Includes django-ai-plugins and agentic-django as Django
   foundation dependencies. Use for any DjangoCMS work: creating pages with
@@ -21,12 +21,16 @@ metadata:
   author: growlf
   version: "0.1.0"
   compatibility: claude-code, opencode, codex, cursor
+  stack:
+    python: "3.12|3.13"
+    django: "5.2 LTS"
+    django-cms: "5.1.3"
 ---
 
 # DjangoCMS Agent
 
-> **DjangoCMS specialist** — handles the entire django-cms 4.x stack.
-> 
+> **DjangoCMS specialist** — handles the entire django-cms 5.x stack.
+>
 > **Credit:** Built on patterns from [vintasoftware/django-ai-plugins](https://github.com/vintasoftware/django-ai-plugins) (MIT) and [MohamedMandour10/agentic-django](https://github.com/MohamedMandour10/agentic-django).
 
 ## When to Use
@@ -38,7 +42,7 @@ Invoke this agent when working with any DjangoCMS-related code:
 - Writing custom CMS content plugins or apphooks
 - Customizing the CMS admin (`PageAdmin`, plugin admin)
 - Writing CMS migrations or data migrations
-- Configuring CMS middleware, settings, `CMS_CONFIRM_VERSION4`
+- Configuring CMS middleware, settings
 - CMS template development (`{% load cms_tags %}`, `{% show_menu %}`)
 - Debugging CMS page rendering, nav, or placeholder issues
 
@@ -72,19 +76,26 @@ agents in addition to CMS-specific guidance:
 | `djangocms-templates` | CMS templates, `{% load cms_tags %}`, `{% show_menu %}` |
 | `djangocms-admin` | `cms.admin.*`, `PageAdmin`, plugin admin files |
 | `djangocms-plugins` | Custom plugin files, `CMSConfig`, apphooks |
-| `djangocms-middleware` | `MIDDLEWARE`, CMS settings, `CMS_CONFIRM_VERSION4` |
+| `djangocms-middleware` | `MIDDLEWARE`, CMS settings, CMS configuration |
 | `djangocms-migration` | CMS migrations, `RunPython` on CMS models |
 
 ## CMS Gotchas (from TheNetYeti)
 
-These are captured from production experience with DjangoCMS 4.1 + Django Templates:
+These are captured from production experience with Django + DjangoCMS integration:
 
 - **`create_page` requires `language="en-us"`** — no `published=` kwarg (uses `CMS_DEFAULT_INTENT`)
-- **CMS 4.1 page lookup** — slugs live in `PageUrl`: `PageUrl.objects.get(slug=slug).page`
+- **CMS page lookup** — slugs live in `PageUrl`: `PageUrl.objects.get(slug=slug).page`
 - **Re-pointing page templates** — use `PageContent.objects.filter(page=page, language="en-us").first().template`
 - **`{% render_block %}`** — cannot live inside a `{% block %}` (swallows following `{% endblock %}`)
 - **`{% show_menu %}`** — requires `menus.context_processors.menus` which may not be available
 - **`{% %}` inside `{# #}` comments** — tokenizes/parse-fails; keep DTL comments free of `{% %}`
+
+## CMS 5.x Notes
+
+- **`CMS_CONFIRM_VERSION4` removed** — this setting was only needed for the CMS 4.x migration path from 3.x. Not needed in 5.x.
+- **`CMS_DEFAULT_INTENT`** — still controls the default publish state for `create_page` (default: `"draft"`)
+- **sekizai** — still requires `{% render_block "css" %}` (sekizai 4.x+ syntax); `{% slot %}` is not used
+- **menus** — the `menus.context_processors.menus` processor may not be available in all builds; `{% show_menu %}` will not work without it
 
 ## References
 
