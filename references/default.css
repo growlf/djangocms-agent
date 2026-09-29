@@ -1,0 +1,171 @@
+/* === CSS Custom Properties === */
+:root {
+    --ny-color-primary: #2563eb;
+    --ny-color-primary-hover: #1d4ed8;
+    --ny-color-text: #1f2937;
+    --ny-color-text-muted: #6b7280;
+    --ny-color-bg: #ffffff;
+    --ny-color-bg-alt: #f9fafb;
+    --ny-color-border: #e5e7eb;
+    --ny-color-link: #2563eb;
+    --ny-color-link-hover: #1d4ed8;
+    
+    --ny-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --ny-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+    
+    --ny-spacing-xs: 0.25rem;
+    --ny-spacing-sm: 0.5rem;
+    --ny-spacing-md: 1rem;
+    --ny-spacing-lg: 1.5rem;
+    --ny-spacing-xl: 2rem;
+    --ny-spacing-2xl: 3rem;
+    
+    --ny-max-width: 1200px;
+    --ny-border-radius: 0.375rem;
+}
+
+/* === Base Styles === */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--ny-font-sans);
+    line-height: 1.6;
+    color: var(--ny-color-text);
+    background-color: var(--ny-color-bg);
+    -webkit-font-smoothing: antialiased;
+}
+
+a {
+    color: var(--ny-color-link);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+a:hover {
+    color: var(--ny-color-link-hover);
+}
+
+/* === Layout === */
+.container {
+    max-width: var(--ny-max-width);
+    margin: 0 auto;
+    padding: 0 var(--ny-spacing-lg);
+}
+
+.content-sidebar {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--ny-spacing-xl);
+}
+
+.sidebar {
+    background: var(--ny-color-bg-alt);
+    padding: var(--ny-spacing-lg);
+    border-radius: var(--ny-border-radius);
+    border: 1px solid var(--ny-color-border);
+}
+
+/* === Header === */
+.site-header {
+    background: var(--ny-color-bg);
+    border-bottom: 1px solid var(--ny-color-border);
+    padding: var(--ny-spacing-md) 0;
+}
+
+.site-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.site-logo {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--ny-color-text);
+}
+
+/* === Menu === */
+.menu {
+    list-style: none;
+    display: flex;
+    gap: var(--ny-spacing-md);
+}
+
+.menu li {
+    position: relative;
+}
+
+.menu a {
+    padding: var(--ny-spacing-sm) var(--ny-spacing-md);
+    border-radius: var(--ny-border-radius);
+}
+
+.menu a:hover {
+    background: var(--ny-color-bg-alt);
+}
+
+/* === Main Content === */
+.site-main {
+    padding: var(--ny-spacing-2xl) 0;
+    min-height: calc(100vh - 12rem);
+}
+
+/* === Footer === */
+.site-footer {
+    background: var(--ny-color-bg-alt);
+    border-top: 1px solid var(--ny-color-border);
+    padding: var(--ny-spacing-xl) 0;
+    text-align: center;
+    color: var(--ny-color-text-muted);
+}
+
+/* === Responsive === */
+@media (min-width: 768px) {
+    .content-sidebar {
+        grid-template-columns: 3fr 1fr;
+    }
+    
+    .site-nav {
+        align-items: center;
+    }
+}
+
+@media (max-width: 767px) {
+    .menu {
+        flex-direction: column;
+        gap: var(--ny-spacing-xs);
+    }
+}
+
+/* === Print === */
+@media print {
+    .site-header,
+    .site-footer,
+    .cms-toolbar {
+        display: none;
+    }
+    
+    body {
+        font-size: 12pt;
+        color: #000;
+    }
+}
+
+/* === Accessible Focus States === */
+a:focus, button:focus {
+    outline: 2px solid var(--ny-color-primary);
+    outline-offset: 2px;
+}
+
+/* === CMS Toolbar Override === */
+.cms-toolbar {
+    z-index: 9999;
+}

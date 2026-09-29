@@ -180,6 +180,57 @@ CMS_PLACEHOLDER_CONF = {
 }
 ```
 
+
+### Default Theme (professional, mobile-friendly)
+Create `templates/default.html` with:
+- Mobile-first responsive CSS (use CSS custom properties for theming)
+- Proper typography (system font stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', etc.)
+- CSS grid/flexbox layout with max-width containers
+- Dark/light mode support (prefers-color-scheme)
+- Accessible markup (ARIA labels, semantic HTML5 elements)
+- Site navigation menu with dropdown support
+- Footer with standard links
+- Placeholder regions: `{% placeholder "content" %}` and `{% placeholder "sidebar" %}`
+- CMS toolbar: `{% cms_toolbar %}`
+- Sekizai blocks: `{% render_block "css" %}` and `{% render_block "js" %}`
+
+See `references/default-theme.html` for a production-ready template.
+
+### Recommended CMS Plugins (stable, maintained)
+```python
+dependencies = [
+    # Core (always include)
+    "djangocms-alias",      # Reusable content fragments
+    "djangocms-link",       # Links with rich options
+    "djangocms-picture",    # Image plugin
+    "djangocms-text-ckeditor",  # WYSIWYG text editor
+    
+    # Media & content
+    "djangocms-video",      # Video embedding
+    "djangocms-file",       # File downloads
+    "djangocms-style",      # Text styling classes
+    
+    # UI components
+    "djangocms-bootstrap5", # Bootstrap grid/components
+    "djangocms-social",     # Social media buttons
+    
+    # Advanced (optional)
+    "djangocms-googlemap",  # Embedded maps
+    "djangocms-form",       # Contact forms
+]
+```
+
+### Default CSS (professional styling)
+Create `static/css/netyeti.css` with:
+- CSS custom properties for colors, spacing, typography
+- Mobile-first media queries
+- Print styles
+- Focus/accessible states
+- Smooth scroll behavior
+- Professional color palette (not default browser colors)
+
+See `references/default.css` for a complete production stylesheet.
+
 ## When to Use
 ### Root URL redirect (avoid admin redirect)
 ```python
@@ -193,6 +244,57 @@ urlpatterns = [
     path('', include('cms.urls')),
 ]
 ```
+
+
+### Default Theme (professional, mobile-friendly)
+Create `templates/default.html` with:
+- Mobile-first responsive CSS (use CSS custom properties for theming)
+- Proper typography (system font stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', etc.)
+- CSS grid/flexbox layout with max-width containers
+- Dark/light mode support (prefers-color-scheme)
+- Accessible markup (ARIA labels, semantic HTML5 elements)
+- Site navigation menu with dropdown support
+- Footer with standard links
+- Placeholder regions: `{% placeholder "content" %}` and `{% placeholder "sidebar" %}`
+- CMS toolbar: `{% cms_toolbar %}`
+- Sekizai blocks: `{% render_block "css" %}` and `{% render_block "js" %}`
+
+See `references/default-theme.html` for a production-ready template.
+
+### Recommended CMS Plugins (stable, maintained)
+```python
+dependencies = [
+    # Core (always include)
+    "djangocms-alias",      # Reusable content fragments
+    "djangocms-link",       # Links with rich options
+    "djangocms-picture",    # Image plugin
+    "djangocms-text-ckeditor",  # WYSIWYG text editor
+    
+    # Media & content
+    "djangocms-video",      # Video embedding
+    "djangocms-file",       # File downloads
+    "djangocms-style",      # Text styling classes
+    
+    # UI components
+    "djangocms-bootstrap5", # Bootstrap grid/components
+    "djangocms-social",     # Social media buttons
+    
+    # Advanced (optional)
+    "djangocms-googlemap",  # Embedded maps
+    "djangocms-form",       # Contact forms
+]
+```
+
+### Default CSS (professional styling)
+Create `static/css/netyeti.css` with:
+- CSS custom properties for colors, spacing, typography
+- Mobile-first media queries
+- Print styles
+- Focus/accessible states
+- Smooth scroll behavior
+- Professional color palette (not default browser colors)
+
+See `references/default.css` for a complete production stylesheet.
 
 ## When to Use
 
