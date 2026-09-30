@@ -67,7 +67,6 @@ CMS_PLACEHOLDER_CONF = {
 }
 
 CMS_PERMISSION = False  # Enable if you want page-level permissions
-CMS_SEO_FIELDS = True  # SEO fields for pages
 CMS_LANGUAGES = {
     1: [
         {"code": "en-us", "name": "English", "fallbacks": []},

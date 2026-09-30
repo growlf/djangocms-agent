@@ -236,7 +236,7 @@ See `references/default.css` for a complete production stylesheet.
 Starting point; items not marked verified in CHANGELOG are unproven:
 
 ```python
-# settings.py - REQUIRED
+# settings.py - starting point (plugin apps below other than text/link/versioning/filer are untested on cms 5.1.3)
 INSTALLED_APPS = [
     'cms', 'menus', 'sekizai', 'treebeard',  # CMS core
     'djangocms_admin_style',  # Admin styling
@@ -247,7 +247,7 @@ INSTALLED_APPS = [
     'djangocms_versioning',  # Draft workflow
 ]
 
-# TEMPLATES - app_directories.Loader REQUIRED for plugins
+# TEMPLATES - keep the app_directories loader so plugin templates resolve
 TEMPLATES = [{
     'OPTIONS': {
         'loaders': [
@@ -265,7 +265,9 @@ TEMPLATES = [{
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 ```
 
-### Verified Template Structure
+### Template Structure (unverified — render-test before relying on it)
+
+Note: `menu/hamburger.html` and `{{ site_name }}` are not shipped/defined by this repo; supply your own or replace them.
 
 ```html
 {% load cms_tags sekizai_tags menu_tags static %}
@@ -319,15 +321,15 @@ Preferred approach: `{% load menu_tags %}` then `{% show_menu 0 100 100 100 %}`.
 </nav>
 ```
 
-### Mobile Verification Checklist
+### Mobile Verification Checklist (run these checks; none are proven yet)
 
-- [x] Hamburger button visible on mobile (< 768px)
-- [x] Menu opens on click
-- [x] Menu items visible and clickable
-- [x] Menu closes when tapping outside
-- [x] Desktop view shows horizontal menu
-- [x] CSS grid/flexbox responsive layout
-- [x] Dark/light mode support
+- [ ] Hamburger button visible on mobile (< 768px)
+- [ ] Menu opens on click
+- [ ] Menu items visible and clickable
+- [ ] Menu closes when tapping outside
+- [ ] Desktop view shows horizontal menu
+- [ ] CSS grid/flexbox responsive layout
+- [ ] Dark/light mode support
 
 ### Visual Validation Command
 
@@ -337,12 +339,13 @@ uv run python scripts/visual_check.py http://localhost:8000/home/ /tmp/verify.pn
 ```
 
 
-### Root URL redirect (avoid admin redirect)
+### Root URL redirect (only when the CMS home page is NOT served at `/`)
 ```python
 # In urls.py
+HOME_URL = '/home/'  # URL of your CMS home page; must NOT be '/' (that would redirect to itself)
+
 def root_redirect(request):
-    # redirect target: your CMS home page URL (do not assume /home/)
-    return redirect('/')
+    return redirect(HOME_URL)
 
 urlpatterns = [
     path('', root_redirect, name='root'),
@@ -382,7 +385,7 @@ agents in addition to CMS-specific guidance:
 1. **Django models/ORM** → follow `django-expert` models guidance
 2. **Django views/DRF** → follow `django-expert` views/API guidance
 3. **Django admin** → follow `django-expert` admin guidance (non-CMS parts)
-4. **Django migrations** → follow `django-expert` migrations; for CMS-specific data-migration patterns see `references/`.
+4. **Django migrations** → follow `django-expert` migrations; for CMS models use `PageUrl`/`PageContent` (see CMS Gotchas) in `RunPython`.
 5. **Django testing** → follow `django-expert` testing guidance
 
 ## Scope

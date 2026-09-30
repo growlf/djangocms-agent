@@ -73,10 +73,7 @@ TEMPLATES = [
 | `CMS_TEMPLATES` | — | List of (template_path, display_name) tuples |
 | `CMS_PLACEHOLDER_CONF` | — | Per-placeholder configuration |
 | `CMS_PERMISSION` | `False` | Enable page-level permissions |
-| `CMS_SEO_FIELDS` | `True` | Add SEO meta fields to page admin |
 | `CMS_LANGUAGES` | — | Language configuration (required) |
-| `CMS_TOOLBAR_URL__PASTE` | `paste` | URL param for toolbar paste action |
-| `CMS_NAVIGATION_EXTENDERS` | `[]` | Custom menu rendering hooks |
 
 ### sekizai Integration
 

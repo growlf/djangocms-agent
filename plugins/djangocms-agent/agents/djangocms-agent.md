@@ -22,7 +22,7 @@ follow the relevant skill from the Django foundation agents:
 1. **Django models/ORM** → `django-expert` (vintasoftware/django-ai-plugins)
 2. **Django architecture** → `agentic-django` (MohamedMandour10/agentic-django)
 3. **Django testing** → `django-expert` (vintasoftware/django-ai-plugins)
-4. **Django migrations** → `django-expert` + `references/` for CMS-specific data-migration patterns
+4. **Django migrations** → `django-expert` (for CMS models see the CMS Gotchas in the skill)
 
 ## CMS Gotchas (from TheNetYeti project)
 

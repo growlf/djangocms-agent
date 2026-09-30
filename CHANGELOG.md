@@ -14,6 +14,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Aligned references and adapters with django-cms 5.x (replaced all 4.x references)
 - Replaced `djangocms-text-ckeditor` with `djangocms-text` (correct package for CMS 5.x)
 - Removed references to 8 sub-skills that do not exist
+- Removed further non-existent settings from references: `CMS_SEO_FIELDS`, `CMS_TOOLBAR_URL__PASTE`, `CMS_NAVIGATION_EXTENDERS`
+- Fixed root-redirect example that redirected `/` to itself; relabelled unproven template/checklist sections as unverified
 - Gated debug toolbar configuration on `DEBUG` flag; removed unsafe "Safe for production" claim
 
 ### Verification status
