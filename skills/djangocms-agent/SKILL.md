@@ -302,7 +302,9 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 </html>
 ```
 
-### Verified Menu Template
+### Menu Template (UNVERIFIED — render-test before relying on it)
+
+Preferred approach: `{% load menu_tags %}` then `{% show_menu 0 100 100 100 %}`. The hand-rolled loop below uses `request.current_page.get_root_nodes`, which has not been verified to exist.
 
 ```html
 {% load cms_tags %}
@@ -408,14 +410,14 @@ These are captured from production experience with Django + DjangoCMS integratio
 - **CMS page lookup** — slugs live in `PageUrl`: `PageUrl.objects.get(slug=slug).page`
 - **Re-pointing page templates** — use `PageContent.objects.filter(page=page, language="en-us").first().template`
 - **`{% render_block %}`** — cannot live inside a `{% block %}` (swallows following `{% endblock %}`)
-- **`{% show_menu %}`** — requires `{% load menu_tags %}` (not loaded by `cms_tags` alone)
+- **`{% show_menu %}`** — requires `{% load menu_tags %}` and the context processor `cms.context_processors.cms_settings` (it provides `cms_menu_renderer`). There is no `menus.context_processors.menus`. If `show_menu` renders nothing or errors, first check that `cms_settings` is in `TEMPLATES[0]["OPTIONS"]["context_processors"]`.
 - **`{% %}` inside `{# #}` comments** — tokenizes/parse-fails; keep DTL comments free of `{% %}`
 
 ## CMS 5.x Notes
 
 - **`CMS_CONFIRM_VERSION4` removed** — this setting was only needed for the CMS 4.x migration path from 3.x. Not needed in 5.x.
 - **sekizai** — still requires `{% render_block "css" %}`; `{% slot %}` is not used
-- **`{% show_menu %}`** — requires `{% load menu_tags %}` and `cms.context_processors.cms_settings` context processor; `menus.context_processors.menus` does not exist (see show_menu gotcha below)
+- **menus** — see show_menu gotcha above
 
 ## References
 
