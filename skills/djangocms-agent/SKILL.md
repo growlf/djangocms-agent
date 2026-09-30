@@ -100,9 +100,13 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allows CMS toolbar iframe to load
 
 ### CMS Toolbar settings
 ```python
-CMS_TOOLBAR_ANONYMOUS_EDIT = False  # Only show toolbar for logged-in users
-CMS_TOOLBAR_REQUIRE_SUPERUSER = True  # Require superuser for toolbar
-CMS_TOOLBAR_URL__EDIT_ON = 'edit'  # ?edit parameter to enable edit mode
+# Real django-cms 5.1.3 toolbar settings (verified in cms/utils/conf.py).
+# All are optional; values shown are the defaults.
+CMS_TOOLBAR_ANONYMOUS_ON = True        # toolbar login prompt visible to anonymous users
+CMS_TOOLBAR_URL__ENABLE = "toolbar_on"
+CMS_TOOLBAR_URL__DISABLE = "toolbar_off"
+CMS_TOOLBAR_URL__PERSIST = "persist"
+CMS_TOOLBAR_HIDE = False
 ```
 
 
@@ -232,9 +236,9 @@ Create `static/css/netyeti.css` with:
 See `references/default.css` for a complete production stylesheet.
 
 
-### Verified Project Defaults (v0.4.0+)
+### Project Defaults (partially verified — see CHANGELOG)
 
-These defaults have been tested and verified on TheNetYeti-CMS-Test:
+Starting point; items not marked verified in CHANGELOG are unproven:
 
 ```python
 # settings.py - REQUIRED
@@ -264,11 +268,6 @@ TEMPLATES = [{
 
 # CMS toolbar requires SAMEORIGIN
 X_FRAME_OPTIONS = 'SAMEORIGIN'
-
-# CMS settings
-CMS_TOOLBAR_ANONYMOUS_EDIT = False
-CMS_TOOLBAR_REQUIRE_SUPERUSER = True
-CMS_DEFAULT_INTENT = 'draft'
 ```
 
 ### Verified Template Structure
@@ -405,7 +404,7 @@ agents in addition to CMS-specific guidance:
 
 These are captured from production experience with Django + DjangoCMS integration:
 
-- **`create_page` requires `language="en-us"`** — no `published=` kwarg (uses `CMS_DEFAULT_INTENT`)
+- **`create_page` requires `language="en-us"`** — no `published=` kwarg
 - **CMS page lookup** — slugs live in `PageUrl`: `PageUrl.objects.get(slug=slug).page`
 - **Re-pointing page templates** — use `PageContent.objects.filter(page=page, language="en-us").first().template`
 - **`{% render_block %}`** — cannot live inside a `{% block %}` (swallows following `{% endblock %}`)
@@ -415,9 +414,8 @@ These are captured from production experience with Django + DjangoCMS integratio
 ## CMS 5.x Notes
 
 - **`CMS_CONFIRM_VERSION4` removed** — this setting was only needed for the CMS 4.x migration path from 3.x. Not needed in 5.x.
-- **`CMS_DEFAULT_INTENT`** — still controls the default publish state for `create_page` (default: `"draft"`)
-- **sekizai** — still requires `{% render_block "css" %}` (sekizai 4.x+ syntax); `{% slot %}` is not used
-- **menus** — the `menus.context_processors.menus` processor does not exist; use `{% show_menu %}` with `{% load menu_tags %}`
+- **sekizai** — still requires `{% render_block "css" %}`; `{% slot %}` is not used
+- **`{% show_menu %}`** — requires `{% load menu_tags %}` and `cms.context_processors.cms_settings` context processor; `menus.context_processors.menus` does not exist (see show_menu gotcha below)
 
 ## References
 
