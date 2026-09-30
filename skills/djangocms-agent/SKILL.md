@@ -37,33 +37,31 @@ metadata:
 ## VISUAL VALIDATION (MANDATORY)
 
 **Never make CMS changes without visual confirmation.** The agent must validate
-every change by taking a screenshot and analyzing visible content.
+every change by running `scripts/visual_check.py` and reporting the RESULT line.
 
-### Before making changes:
+One-time setup: `pip install playwright && playwright install chromium`.
+
 ```bash
-# Start the dev server if not running
-uv run python manage.py runserver 0.0.0.0:8000 &
+# Desktop (1280×800) — default screenshot path /tmp/cms-check.png
+python scripts/visual_check.py http://localhost:8000/
 
-# Take baseline screenshot
-uv run python scripts/visual_check.py http://localhost:8000/home/ /tmp/before.png
+# Mobile viewport (390×844)
+python scripts/visual_check.py http://localhost:8000/ --mobile
+
+# Require specific text on the page
+python scripts/visual_check.py http://localhost:8000/ --expect-text "Welcome"
+
+# With login (password read from environment variable)
+python scripts/visual_check.py http://localhost:8000/ --login admin:DJANGO_PASS
+
+# Custom screenshot path
+python scripts/visual_check.py http://localhost:8000/ --out /tmp/verify.png
 ```
 
-### After making changes:
-```bash
-# Take validation screenshot
-uv run python scripts/visual_check.py http://localhost:8000/home/ /tmp/after.png
-
-# Report findings:
-# - What changed visually
-# - Any errors detected (404, template errors, server errors)
-# - What's missing (empty placeholders, missing menu)
-# - What's working (content rendered, template loaded)
-```
-
-### Visual check script locations:
-- `scripts/visual_check.py` — takes screenshots and reports visible content
-- Output saved to `/tmp/cms-check.png` (or specify path)
-- Reports HTTP status, visible text, and common error patterns
+Exit codes: 0 = no issues, 1 = issues found, 2 = script/browser error.
+Output includes URL, final URL, HTTP status, page title, first 300 chars of visible text,
+then any ISSUE lines, ending with `RESULT: PASS` or `RESULT: FAIL (N issues)`.
+If you cannot view images, rely on the printed text and exit code; do not claim visual confirmation.
 
 ## PROJECT SETUP (DEFAULT SETTINGS)
 
@@ -330,13 +328,6 @@ Preferred approach: `{% load menu_tags %}` then `{% show_menu 0 100 100 100 %}`.
 - [ ] Desktop view shows horizontal menu
 - [ ] CSS grid/flexbox responsive layout
 - [ ] Dark/light mode support
-
-### Visual Validation Command
-
-```bash
-# After making changes, run:
-uv run python scripts/visual_check.py http://localhost:8000/home/ /tmp/verify.png
-```
 
 
 ### Root URL redirect (only when the CMS home page is NOT served at `/`)
