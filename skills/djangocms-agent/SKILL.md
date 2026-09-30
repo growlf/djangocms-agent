@@ -136,32 +136,22 @@ Docs available at `/admin/docs/`. Requires `docutils` (included with Django).
 
 ### DjangoDebugToolbar (development only)
 ```python
-# In pyproject.toml
-dependencies = ["django-debug-toolbar"]
-
-# In INSTALLED_APPS (at top!)
-INSTALLED_APPS = [
-    'debug_toolbar',  # Must be before other apps
-    ...
-]
-
-# In MIDDLEWARE (at top!)
-MIDDLEWARE = [
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
-    ...
-]
-
-# In urls.py
-import sys
-if 'debug_toolbar' in INSTALLED_APPS:
-    import socket
-    hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
-    INTERNAL_IPS = [ip[:-1] + '1' for ip in ips] + ['127.0.0.1', '10.0.2.2']
-    urlpatterns += [
-        path('__debug__/', include('debug_toolbar.urls')),
-    ]
+# settings.py — enable ONLY when DEBUG is on
+if DEBUG:
+    INSTALLED_APPS += ["debug_toolbar"]
+    MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+    INTERNAL_IPS = ["127.0.0.1", "::1"]   # exact IPs only (no CIDR ranges)
 ```
-Toolbar only shows for INTERNAL_IPS. Safe for production.
+
+```python
+# urls.py
+
+from django.conf import settings
+if settings.DEBUG:
+    urlpatterns += [path("__debug__/", include("debug_toolbar.urls"))]
+```
+
+Never install the toolbar unconditionally; gate it on DEBUG.
 
 ### Default CMS template (generic theme with dynamic menu)
 ```python
@@ -323,7 +313,7 @@ Preferred approach: `{% load menu_tags %}` then `{% show_menu 0 100 100 100 %}`.
             <a href="{{ page.get_absolute_url }}">{{ page.get_menu_title }}</a>
         </li>
         {% empty %}
-        <li class="nav-item"><a href="/home/">Home</a></li>
+        <li class="nav-item"><a href="/">Home</a></li>
         {% endfor %}
     </ul>
 </nav>
@@ -351,7 +341,8 @@ uv run python scripts/visual_check.py http://localhost:8000/home/ /tmp/verify.pn
 ```python
 # In urls.py
 def root_redirect(request):
-    return redirect('/home/')
+    # redirect target: your CMS home page URL (do not assume /home/)
+    return redirect('/')
 
 urlpatterns = [
     path('', root_redirect, name='root'),
