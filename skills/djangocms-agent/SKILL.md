@@ -382,7 +382,7 @@ agents in addition to CMS-specific guidance:
 1. **Django models/ORM** → follow `django-expert` models guidance
 2. **Django views/DRF** → follow `django-expert` views/API guidance
 3. **Django admin** → follow `django-expert` admin guidance (non-CMS parts)
-4. **Django migrations** → follow `django-expert` migrations + `djangocms-migration` for CMS-specific patterns
+4. **Django migrations** → follow `django-expert` migrations; for CMS-specific data-migration patterns see `references/`.
 5. **Django testing** → follow `django-expert` testing guidance
 
 ## Scope

@@ -18,4 +18,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Verification status
 - Proven: nothing yet by render test
-- Unverified: menu template, optional plugins, versioning publish API (see improvements.md F12)
+- Unverified: menu template using `request.current_page.get_root_nodes`; optional plugins (video, social, googlemap, form, bootstrap5); how to publish a page under djangocms-versioning.
