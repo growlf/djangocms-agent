@@ -77,6 +77,15 @@ class TestVisualCheck(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("ISSUE: HTTP 404", r.stdout)
 
+    def test_http_404_reported_once(self):
+        r = self.run_check("/does-not-exist")
+        self.assertEqual(r.stdout.count("ISSUE: HTTP 404"), 1)
+        self.assertNotIn("ISSUE: request failed:", r.stdout)
+
+    def test_login_with_unset_env_var_exits_2(self):
+        r = self.run_check("/ok", "--login", "admin:VC_TEST_UNSET_VAR")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+
     def test_console_error_fails(self):
         r = self.run_check("/console-error")
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)

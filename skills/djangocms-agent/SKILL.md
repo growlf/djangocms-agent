@@ -39,6 +39,8 @@ metadata:
 **Never make CMS changes without visual confirmation.** The agent must validate
 every change by running `scripts/visual_check.py` and reporting the RESULT line.
 
+One-time setup: `pip install playwright && playwright install chromium`.
+
 ```bash
 # Desktop (1280×800) — default screenshot path /tmp/cms-check.png
 python scripts/visual_check.py http://localhost:8000/
@@ -326,13 +328,6 @@ Preferred approach: `{% load menu_tags %}` then `{% show_menu 0 100 100 100 %}`.
 - [ ] Desktop view shows horizontal menu
 - [ ] CSS grid/flexbox responsive layout
 - [ ] Dark/light mode support
-
-### Visual Validation Command
-
-```bash
-# After making changes, run:
-uv run python scripts/visual_check.py http://localhost:8000/home/ /tmp/verify.png
-```
 
 
 ### Root URL redirect (only when the CMS home page is NOT served at `/`)

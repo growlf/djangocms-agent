@@ -31,7 +31,9 @@ This agent provides expert guidance on the entire django-cms 5.x stack:
 
 ## Visual Validation
 
-Before and after every CMS change, run the visual check script:
+Before and after every CMS change, run the visual check script
+(one-time setup: `pip install playwright && playwright install chromium`;
+tests: `python3 -m unittest scripts/test_visual_check.py`):
 
 ```bash
 # Check a page (default desktop 1280×800)

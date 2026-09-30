@@ -100,6 +100,8 @@ def check_url(url, out_path, width, height, expect_texts, login_spec):
                 if response.status >= 400:
                     try:
                         req = response.request
+                        if req.is_navigation_request():
+                            return  # already reported as "HTTP <code>"
                         orig = req.url
                         same_origin = (
                             urlparse(orig).netloc == urlparse(url).netloc
@@ -119,7 +121,9 @@ def check_url(url, out_path, width, height, expect_texts, login_spec):
             # Login step
             if login_spec:
                 user, env_var = login_spec.split(":", 1)
-                password = os.environ.get(env_var, "")
+                if env_var not in os.environ:
+                    raise ValueError(f"--login: environment variable {env_var} is not set")
+                password = os.environ[env_var]
                 page.goto(url, wait_until="domcontentloaded", timeout=15000)
                 # Try common Django admin login patterns
                 try:
@@ -139,8 +143,12 @@ def check_url(url, out_path, width, height, expect_texts, login_spec):
 
             # Navigate
             response = page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            # Allow extra time for rendering
-            page.wait_for_timeout(1000)
+            # Let subresources finish so missing assets are caught (tolerate slow pages)
+            try:
+                page.wait_for_load_state("load", timeout=5000)
+            except Exception:
+                pass
+            page.wait_for_timeout(500)
 
             final_url = page.url
             status = response.status if response else 0
