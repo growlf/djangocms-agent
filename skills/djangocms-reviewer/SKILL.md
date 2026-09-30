@@ -4,7 +4,7 @@ description: Reviews Django and DjangoCMS code for correctness, CMS best practic
 license: MIT
 metadata:
   author: growlf
-  version: "0.1.0"
+  version: "0.5.0"
 ---
 
 # DjangoCMS Reviewer
@@ -36,20 +36,20 @@ cms-visible behavior: page rendering, placeholder content, menu output.
 
 ### Page Tree Operations
 
-- Use `create_page(title, template, language="en-us", ...)` with correct CMS 4.x API.
+- Use `create_page(title, template, language="en-us", ...)` with correct CMS 5.x API.
 - Access slugs via `PageUrl.objects.get(slug=slug).page`, not `Page.slug`.
 - Use `PageContent` for language-specific template changes.
 
 ### Placeholders
 
 - Placeholders should be defined in templates with `{% placeholder "name" %}`.
-- Use `{% render_block "css" %}` and `{% render_block "js" %}` for sekizai — not `{% slot %}` (sekizai 4.x).
+- Use `{% render_block "css" %}` and `{% render_block "js" %}` for sekizai — not `{% slot %}`.
 - `{% render_block %}` cannot live inside a `{% block %}`.
 
 ### Templates
 
 - Use `{% load cms_tags %}` and `{% load menu_tags %}` correctly.
-- `{% show_menu %}` requires `menus.context_processors.menus` in `TEMPLATES`.
+- `{% show_menu %}` requires `{% load menu_tags %}` and `cms.context_processors.cms_settings` context processor (not `menus.context_processors.menus` which does not exist).
 - `{% %}` inside `{# #}` comments parse-fails on this build — keep comments free of `{% %}`.
 
 ### Custom Plugins

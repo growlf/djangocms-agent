@@ -13,8 +13,8 @@
   "plugins": [
     {
       "id": "djangocms-agent",
-      "version": "0.1.0",
-      "description": "DjangoCMS specialist agent for Claude Code and OpenCode. Covers page trees, placeholders, templates, plugins, admin, middleware, and migrations for django-cms 4.x.",
+      "version": "0.5.0",
+      "description": "DjangoCMS specialist agent for Claude Code and OpenCode. Covers page trees, placeholders, templates, plugins, admin, middleware, and migrations for django-cms 5.x.",
       "package": "plugins/djangocms-agent",
       "capability": {
         "kind": "skill",
@@ -40,7 +40,7 @@
       "interface": {
         "display_name": "DjangoCMS Agent",
         "short_description": "DjangoCMS specialist agent.",
-        "long_description": "Expert guidance for django-cms 4.x: page trees, placeholders, templates, content plugins, admin customization, middleware, and migrations.",
+        "long_description": "Expert guidance for django-cms 5.x: page trees, placeholders, templates, content plugins, admin customization, middleware, and migrations.",
         "default_prompts": [
           "Create a new CMS page with placeholders.",
           "Configure CMS_TEMPLATES for my project.",
@@ -51,7 +51,7 @@
     },
     {
       "id": "djangocms-reviewer",
-      "version": "0.1.0",
+      "version": "0.5.0",
       "description": "Reviews DjangoCMS and Django code for correctness, CMS best practices, placeholder usage, and common anti-patterns.",
       "package": "plugins/djangocms-reviewer",
       "capability": {
