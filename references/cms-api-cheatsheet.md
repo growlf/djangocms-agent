@@ -12,9 +12,8 @@ from django.contrib.sites.models import Site
 page = create_page(
     title="My Page",
     template="page.html",
-    language="en-us",  # Required for CMS 4.x
+    language="en-us",  # Required
     in_navigation=True,
-    # No published= kwarg in CMS 4.x (uses CMS_DEFAULT_INTENT)
 )
 
 # Access by slug
@@ -54,7 +53,6 @@ plugin = add_plugin(
 
 ```python
 # settings.py
-CMS_CONFIRM_VERSION4 = True  # Required for CMS 4.x
 
 CMS_TEMPLATES = [
     ("page.html", "Default Page"),

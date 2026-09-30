@@ -5,7 +5,7 @@ model: opus
 
 # DjangoCMS Agent
 
-> **DjangoCMS specialist** — handles the entire django-cms 4.x stack.
+> **DjangoCMS specialist** — handles the entire django-cms 5.x stack.
 >
 > **Credit:** Built on patterns from [vintasoftware/django-ai-plugins](https://github.com/vintasoftware/django-ai-plugins) (MIT) and [MohamedMandour10/agentic-django](https://github.com/MohamedMandour10/agentic-django).
 
@@ -27,4 +27,4 @@ follow the relevant skill from the Django foundation agents:
 ## CMS Gotchas (from TheNetYeti project)
 
 See `skills/djangocms-agent/SKILL.md` for the full list of known issues
-from production DjangoCMS 4.1 + Django Templates integration.
+from production DjangoCMS 5.1 + Django Templates integration.

@@ -3,8 +3,6 @@
 ### Required Settings
 
 ```python
-CMS_CONFIRM_VERSION4 = True  # MANDATORY for CMS 4.x
-
 CMS_TEMPLATES = [
     ("template_name.html", "Display Name"),
 ]
@@ -60,8 +58,8 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "sekizai.context_processors.sekizai",  # Required for sekizai 4.x
-                # "menus.context_processors.menus",  # May not be available
+                "sekizai.context_processors.sekizai",  # Required
+                "cms.context_processors.cms_settings",  # Required for {% show_menu %}
             ],
         },
     },
@@ -72,7 +70,6 @@ TEMPLATES = [
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `CMS_CONFIRM_VERSION4` | — | **Mandatory** — prevents running on CMS 3.x |
 | `CMS_TEMPLATES` | — | List of (template_path, display_name) tuples |
 | `CMS_PLACEHOLDER_CONF` | — | Per-placeholder configuration |
 | `CMS_PERMISSION` | `False` | Enable page-level permissions |
@@ -80,12 +77,11 @@ TEMPLATES = [
 | `CMS_LANGUAGES` | — | Language configuration (required) |
 | `CMS_TOOLBAR_URL__PASTE` | `paste` | URL param for toolbar paste action |
 | `CMS_NAVIGATION_EXTENDERS` | `[]` | Custom menu rendering hooks |
-| `CMS_DEFAULT_INTENT` | `"draft"` | Default publish state for new pages |
 
 ### sekizai Integration
 
 ```python
-# sekizai 4.x uses render_block, NOT slot
+# sekizai uses render_block, NOT slot
 # In templates:
 #   {% render_block "css" %}
 #   {% render_block "js" %}
