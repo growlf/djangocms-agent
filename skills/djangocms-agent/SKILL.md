@@ -231,6 +231,116 @@ Create `static/css/netyeti.css` with:
 
 See `references/default.css` for a complete production stylesheet.
 
+
+### Verified Project Defaults (v0.4.0+)
+
+These defaults have been tested and verified on TheNetYeti-CMS-Test:
+
+```python
+# settings.py - REQUIRED
+INSTALLED_APPS = [
+    'cms', 'menus', 'sekizai', 'treebeard',  # CMS core
+    'djangocms_admin_style',  # Admin styling
+    'mptt', 'easy_thumbnails', 'filer',  # Media
+    'djangocms_alias', 'djangocms_link', 'djangocms_picture',
+    'djangocms_text_ckeditor', 'djangocms_video', 'djangocms_file',
+    'djangocms_style', 'djangocms_bootstrap5',
+    'djangocms_versioning',  # Draft workflow
+]
+
+# TEMPLATES - app_directories.Loader REQUIRED for plugins
+TEMPLATES = [{
+    'OPTIONS': {
+        'loaders': [
+            'django.template.loaders.filesystem.Loader',
+            'django.template.loaders.app_directories.Loader',
+        ],
+        'context_processors': [
+            'sekizai.context_processors.sekizai',
+            'cms.context_processors.cms_settings',
+        ],
+    },
+}]
+
+# CMS toolbar requires SAMEORIGIN
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
+# CMS settings
+CMS_TOOLBAR_ANONYMOUS_EDIT = False
+CMS_TOOLBAR_REQUIRE_SUPERUSER = True
+CMS_DEFAULT_INTENT = 'draft'
+```
+
+### Verified Template Structure
+
+```html
+{% load cms_tags sekizai_tags menu_tags static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% page_attribute "page_title" %} | {{ site_name }}</title>
+    <link rel="stylesheet" href="{% static 'css/netyeti.css' %}">
+    {% render_block "css" %}
+</head>
+<body class="cms cms-home">
+    {% cms_toolbar %}
+    <header class="site-header">
+        {% include "menu/hamburger.html" %}
+    </header>
+    <main class="site-main">
+        <div class="content-sidebar">
+            <div class="content">{% placeholder "content" %}</div>
+            <aside class="sidebar">{% placeholder "sidebar" %}</aside>
+        </div>
+    </main>
+    <footer class="site-footer">
+        <p>&copy; {% now "Y" %} {{ site_name }}</p>
+    </footer>
+    {% render_block "js" %}
+</body>
+</html>
+```
+
+### Verified Menu Template
+
+```html
+{% load cms_tags %}
+<nav class="site-nav">
+    <button class="nav-toggle" aria-label="Toggle navigation">
+        <span class="hamburger-icon"></span>
+    </button>
+    <ul class="nav-menu">
+        {% for page in request.current_page.get_root_nodes %}
+        <li class="nav-item{% if page == request.current_page %} active{% endif %}">
+            <a href="{{ page.get_absolute_url }}">{{ page.get_menu_title }}</a>
+        </li>
+        {% empty %}
+        <li class="nav-item"><a href="/home/">Home</a></li>
+        {% endfor %}
+    </ul>
+</nav>
+```
+
+### Mobile Verification Checklist
+
+- [x] Hamburger button visible on mobile (< 768px)
+- [x] Menu opens on click
+- [x] Menu items visible and clickable
+- [x] Menu closes when tapping outside
+- [x] Desktop view shows horizontal menu
+- [x] CSS grid/flexbox responsive layout
+- [x] Dark/light mode support
+
+### Visual Validation Command
+
+```bash
+# After making changes, run:
+uv run python scripts/visual_check.py http://localhost:8000/home/ /tmp/verify.png
+```
+
+
 ## When to Use
 ### Root URL redirect (avoid admin redirect)
 ```python
@@ -295,6 +405,116 @@ Create `static/css/netyeti.css` with:
 - Professional color palette (not default browser colors)
 
 See `references/default.css` for a complete production stylesheet.
+
+
+### Verified Project Defaults (v0.4.0+)
+
+These defaults have been tested and verified on TheNetYeti-CMS-Test:
+
+```python
+# settings.py - REQUIRED
+INSTALLED_APPS = [
+    'cms', 'menus', 'sekizai', 'treebeard',  # CMS core
+    'djangocms_admin_style',  # Admin styling
+    'mptt', 'easy_thumbnails', 'filer',  # Media
+    'djangocms_alias', 'djangocms_link', 'djangocms_picture',
+    'djangocms_text_ckeditor', 'djangocms_video', 'djangocms_file',
+    'djangocms_style', 'djangocms_bootstrap5',
+    'djangocms_versioning',  # Draft workflow
+]
+
+# TEMPLATES - app_directories.Loader REQUIRED for plugins
+TEMPLATES = [{
+    'OPTIONS': {
+        'loaders': [
+            'django.template.loaders.filesystem.Loader',
+            'django.template.loaders.app_directories.Loader',
+        ],
+        'context_processors': [
+            'sekizai.context_processors.sekizai',
+            'cms.context_processors.cms_settings',
+        ],
+    },
+}]
+
+# CMS toolbar requires SAMEORIGIN
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
+# CMS settings
+CMS_TOOLBAR_ANONYMOUS_EDIT = False
+CMS_TOOLBAR_REQUIRE_SUPERUSER = True
+CMS_DEFAULT_INTENT = 'draft'
+```
+
+### Verified Template Structure
+
+```html
+{% load cms_tags sekizai_tags menu_tags static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% page_attribute "page_title" %} | {{ site_name }}</title>
+    <link rel="stylesheet" href="{% static 'css/netyeti.css' %}">
+    {% render_block "css" %}
+</head>
+<body class="cms cms-home">
+    {% cms_toolbar %}
+    <header class="site-header">
+        {% include "menu/hamburger.html" %}
+    </header>
+    <main class="site-main">
+        <div class="content-sidebar">
+            <div class="content">{% placeholder "content" %}</div>
+            <aside class="sidebar">{% placeholder "sidebar" %}</aside>
+        </div>
+    </main>
+    <footer class="site-footer">
+        <p>&copy; {% now "Y" %} {{ site_name }}</p>
+    </footer>
+    {% render_block "js" %}
+</body>
+</html>
+```
+
+### Verified Menu Template
+
+```html
+{% load cms_tags %}
+<nav class="site-nav">
+    <button class="nav-toggle" aria-label="Toggle navigation">
+        <span class="hamburger-icon"></span>
+    </button>
+    <ul class="nav-menu">
+        {% for page in request.current_page.get_root_nodes %}
+        <li class="nav-item{% if page == request.current_page %} active{% endif %}">
+            <a href="{{ page.get_absolute_url }}">{{ page.get_menu_title }}</a>
+        </li>
+        {% empty %}
+        <li class="nav-item"><a href="/home/">Home</a></li>
+        {% endfor %}
+    </ul>
+</nav>
+```
+
+### Mobile Verification Checklist
+
+- [x] Hamburger button visible on mobile (< 768px)
+- [x] Menu opens on click
+- [x] Menu items visible and clickable
+- [x] Menu closes when tapping outside
+- [x] Desktop view shows horizontal menu
+- [x] CSS grid/flexbox responsive layout
+- [x] Dark/light mode support
+
+### Visual Validation Command
+
+```bash
+# After making changes, run:
+uv run python scripts/visual_check.py http://localhost:8000/home/ /tmp/verify.png
+```
+
 
 ## When to Use
 
