@@ -1,13 +1,8 @@
 """Visual validation for DjangoCMS pages — screenshots, console/request checks, and text analysis."""
 import argparse
-import json
 import os
-import platform
+import sys
 import tempfile
-import threading
-import time
-from http.server import HTTPServer, SimpleHTTPRequestHandler
-from pathlib import Path
 from urllib.parse import urlparse
 
 # ---------------------------------------------------------------------------
@@ -22,7 +17,7 @@ def build_parser():
     parser.add_argument("url", help="Page URL to check (e.g. http://localhost:8000/)")
     parser.add_argument(
         "--out", default=None,
-        help="Screenshot path (default: /tmp/cms-check.png)",
+        help="Screenshot path (default: cms-check.png in the system temp dir)",
     )
     parser.add_argument(
         "--width", type=int, default=1280,
@@ -96,7 +91,6 @@ def check_url(url, out_path, width, height, expect_texts, login_spec):
             # Collect console errors and request failures
             console_errors = []
             failed_requests = []
-            successful_same_origin = []
 
             def _on_console(msg):
                 if msg.type == "error":
@@ -117,24 +111,10 @@ def check_url(url, out_path, width, height, expect_texts, login_spec):
                     except Exception:
                         pass
 
-            def _on_request_done(req):
-                # Track successful same-origin requests for resource check
-                try:
-                    if not req.is_navigation():
-                        orig = req.url
-                        same_origin = (
-                            urlparse(orig).netloc == urlparse(url).netloc
-                        )
-                        if same_origin and req.response() is not None:
-                            successful_same_origin.append(orig)
-                except Exception:
-                    pass
-
             context.on("console", _on_console)
             context.on("response", _on_response)
 
             page = context.new_page()
-            page.on("requestfinished", _on_request_done)
 
             # Login step
             if login_spec:
@@ -150,9 +130,9 @@ def check_url(url, out_path, width, height, expect_texts, login_spec):
                 except Exception:
                     # If admin login fields not found, try generic form
                     try:
-                        page.query_selector_all('input[name="username"], input[type="text"]').first.fill(user)
-                        page.query_selector_all('input[name="password"], input[type="password"]').first.fill(password)
-                        page.query_selector_all('button[type="submit"]').first.click()
+                        page.locator('input[name="username"], input[type="text"]').first.fill(user, timeout=3000)
+                        page.locator('input[name="password"], input[type="password"]').first.fill(password, timeout=3000)
+                        page.locator('button[type="submit"]').first.click(timeout=3000)
                         page.wait_for_load_state("networkidle", timeout=10000)
                     except Exception:
                         pass  # Login may not be possible on this page
@@ -169,7 +149,7 @@ def check_url(url, out_path, width, height, expect_texts, login_spec):
 
             # Screenshot
             if out_path:
-                page.screenshot(path=out_path, full_page=False)
+                page.screenshot(path=out_path, full_page=True)
 
             # --- Issue detection ---
 
@@ -218,7 +198,7 @@ def check_url(url, out_path, width, height, expect_texts, login_spec):
         print(f"ISSUE: script error: {e}", file=sys.stderr)
         # Write minimal output so the caller sees something
         print(f"URL: {url}")
-        print(f"RESULT: FAIL (1 issues)")
+        print("RESULT: FAIL (1 issues)")
         sys.exit(2)
 
     # --- Print summary ---
@@ -234,8 +214,11 @@ def check_url(url, out_path, width, height, expect_texts, login_spec):
     if issues:
         for iss in issues:
             print(iss)
-    print(f"RESULT: FAIL ({len(issues)} issues)")
-    sys.exit(1) if issues else sys.exit(0)
+    if issues:
+        print(f"RESULT: FAIL ({len(issues)} issues)")
+        sys.exit(1)
+    print("RESULT: PASS")
+    sys.exit(0)
 
 
 # ---------------------------------------------------------------------------

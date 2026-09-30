@@ -1,141 +1,37 @@
-"""Unit tests for scripts/visual_check.py."""
-import os
+"""Tests for scripts/visual_check.py (need playwright + chromium; skipped otherwise)."""
 import subprocess
 import sys
-import tempfile
 import threading
 import unittest
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 
-# ---------------------------------------------------------------------------
-# Test HTML fixtures
-# ---------------------------------------------------------------------------
+SCRIPT = str(Path(__file__).with_name("visual_check.py"))
 
-HTML_OK = """\
-<!DOCTYPE html>
-<html><head><title>Home</title></head>
-<body><h1>Welcome</h1><p>Hello world content</p></body></html>
-"""
-
-HTML_NOT_FOUND = """\
-<!DOCTYPE html>
-<html><head><title>Page not found</title></head>
-<body><h1>Page not found</h1></body></html>
-"""
-
-HTML_CONSOLE_ERROR = """\
-<!DOCTYPE html>
-<html><head><title>Error Page</title></head>
-<body><h1>Error</h1><script>console.error("something broke");</script></body></html>
-"""
-
-HTML_DJANGO_ERR = """\
-<!DOCTYPE html>
-<html><head><title>Error</title></head>
-<body><div id="summary">Exception: Something went wrong</div></body></html>
-"""
-
-HTML_EMPTY = """\
-<!DOCTYPE html>
-<html><head><title>Empty</title></head>
-<body></body></html>
-"""
+PAGES = {
+    "/ok": "<html><head><title>Home</title></head><body><h1>Welcome</h1><p>Hello world content</p></body></html>",
+    "/notfound": "<html><head><title>Page not found</title></head><body><h1>Page not found</h1></body></html>",
+    "/mentions-404": "<html><head><title>Docs</title></head><body><h1>Docs</h1><p>If a page is not found, check the URL.</p></body></html>",
+    "/console-error": '<html><head><title>X</title></head><body><h1>X</h1><script>console.error("something broke");</script></body></html>',
+    "/django-err": '<html><head><title>E</title></head><body><div id="summary">Exception: boom</div></body></html>',
+    "/empty": "<html><head><title>Empty</title></head><body></body></html>",
+    "/missing-asset": '<html><head><title>A</title><link rel="stylesheet" href="/nope.css"></head><body><h1>A</h1></body></html>',
+    "/mobile-width": '<html><head><title>M</title></head><body><h1 id="w">x</h1><script>document.getElementById("w").textContent="w="+window.innerWidth;</script></body></html>',
+}
 
 
-class _Handler(SimpleHTTPRequestHandler):
-    """Maps paths to our HTML fixtures."""
-    fixtures = {
-        "/ok": HTML_OK,
-        "/notfound": HTML_NOT_FOUND,
-        "/console-error": HTML_CONSOLE_ERROR,
-        "/django-err": HTML_DJANGO_ERR,
-        "/empty": HTML_EMPTY,
-    }
-
+class _Handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path in self.fixtures:
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html")
-            self.end_headers()
-            self.wfile.write(self.fixtures[self.path].encode())
-        else:
-            self.send_response(404)
-            self.end_headers()
+        body = PAGES.get(self.path)
+        self.send_response(200 if body is not None else 404)
+        self.send_header("Content-Type", "text/html")
+        self.end_headers()
+        self.wfile.write((body or "").encode())
 
     def log_message(self, *args):
-        pass  # silence request logs
+        pass
 
 
-class TestVisualCheck(unittest.TestCase):
-    """Run visual_check.py as a subprocess against a local HTTP server."""
-
-    @classmethod
-    def setUpClass(cls):
-        cls._server = HTTPServer(("127.0.0.1", 0), _Handler)
-        cls._port = cls._server.server_address[1]
-        cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
-        cls._thread.start()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls._server.shutdown()
-
-    def _run(self, *extra_args):
-        """Run visual_check.py and return CompletedProcess."""
-        base = [sys.executable, "-m", "scripts.visual_check"]
-        # Use the module path so relative imports work
-        cmd = [os.path.join(os.path.dirname(__file__), "visual_check.py")]
-        return subprocess.run(
-            cmd + [f"http://127.0.0.1:{self._port}"] + list(extra_args),
-            capture_output=True, text=True, timeout=30,
-        )
-
-    def test_ok_page_exits_0(self):
-        """A normal page with content should exit 0 and show PASS."""
-        result = self._run(f"/ok")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("RESULT: PASS", result.stdout)
-
-    def test_404_page_exits_1(self):
-        """Page titled 'Page not found' should exit 1."""
-        result = self._run(f"/notfound")
-        self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertIn("ISSUE: 404 page", result.stdout)
-
-    def test_console_error_exits_1(self):
-        """Page with console.error should exit 1."""
-        result = self._run(f"/console-error")
-        self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertIn("ISSUE: console error:", result.stdout)
-
-    def test_django_error_page_exits_1(self):
-        """Page with #summary containing Exception should exit 1."""
-        result = self._run(f"/django-err")
-        self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertIn("ISSUE: django error page", result.stdout)
-
-    def test_empty_page_exits_1(self):
-        """Empty body text should exit 1."""
-        result = self._run(f"/empty")
-        self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertIn("ISSUE: empty page", result.stdout)
-
-    def test_expect_text_pass(self):
-        """--expect-text matching visible text should not add an issue."""
-        result = self._run(f"/ok", "--expect-text", "Hello world")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertNotIn("ISSUE: missing text", result.stdout)
-
-    def test_expect_text_fail(self):
-        """--expect-text not found should add ISSUE: missing text."""
-        result = self._run(f"/ok", "--expect-text", "zzznotexist")
-        self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertIn("ISSUE: missing text: zzznotexist", result.stdout)
-
-
-# ---------------------------------------------------------------------------
-# Skip guard — playwright must be importable
-# ---------------------------------------------------------------------------
 def _has_playwright():
     try:
         __import__("playwright.sync_api")
@@ -144,32 +40,77 @@ def _has_playwright():
         return False
 
 
-class _SkipAll(unittest.TestCase):
-    """Fallback when playwright is not installed."""
+@unittest.skipUnless(_has_playwright(), "playwright not installed; skipping visual_check tests")
+class TestVisualCheck(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        pass
+        cls.server = HTTPServer(("127.0.0.1", 0), _Handler)
+        cls.base = f"http://127.0.0.1:{cls.server.server_address[1]}"
+        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
 
     @classmethod
     def tearDownClass(cls):
-        pass
+        cls.server.shutdown()
 
-    def test_skip(self):
-        self.skipTest("playwright not installed; skipping visual_check tests")
+    def run_check(self, path, *args):
+        return subprocess.run(
+            [sys.executable, SCRIPT, self.base + path, *args],
+            capture_output=True, text=True, timeout=60,
+        )
 
-    def _run(self, *extra):
-        self.skipTest("playwright not installed; skipping visual_check tests")
+    def test_ok_page_passes(self):
+        r = self.run_check("/ok")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("RESULT: PASS", r.stdout)
 
+    def test_404_page_fails(self):
+        r = self.run_check("/notfound")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("ISSUE: 404 page", r.stdout)
 
-# ---------------------------------------------------------------------------
-# Swap in fallback if playwright is missing
-# ---------------------------------------------------------------------------
-if not _has_playwright():
-    # Replace the real test class with the skip-all stub
-    import types
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-    _mod.TestVisualCheck = _SkipAll  # type: ignore
+    def test_page_merely_mentioning_not_found_passes(self):
+        r = self.run_check("/mentions-404")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_http_404_fails(self):
+        r = self.run_check("/does-not-exist")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("ISSUE: HTTP 404", r.stdout)
+
+    def test_console_error_fails(self):
+        r = self.run_check("/console-error")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("ISSUE: console error:", r.stdout)
+
+    def test_failed_subresource_fails(self):
+        r = self.run_check("/missing-asset")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("ISSUE: request failed:", r.stdout)
+
+    def test_django_error_page_fails(self):
+        r = self.run_check("/django-err")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("ISSUE: django error page", r.stdout)
+
+    def test_empty_page_fails(self):
+        r = self.run_check("/empty")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("ISSUE: empty page", r.stdout)
+
+    def test_expect_text(self):
+        self.assertEqual(self.run_check("/ok", "--expect-text", "Hello world").returncode, 0)
+        r = self.run_check("/ok", "--expect-text", "zzznotexist")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("ISSUE: missing text: zzznotexist", r.stdout)
+
+    def test_mobile_viewport(self):
+        r = self.run_check("/mobile-width", "--mobile", "--expect-text", "w=390")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_unreachable_exits_2(self):
+        r = subprocess.run([sys.executable, SCRIPT, "http://127.0.0.1:1/"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
 
 
 if __name__ == "__main__":
