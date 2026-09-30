@@ -20,7 +20,7 @@ description: >-
 license: MIT
 metadata:
   author: growlf
-  version: "0.3.0"
+  version: "0.5.0"
   compatibility: claude-code, opencode, codex, cursor
   stack:
     python: "3.12|3.13"

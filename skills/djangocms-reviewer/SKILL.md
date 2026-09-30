@@ -4,7 +4,7 @@ description: Reviews Django and DjangoCMS code for correctness, CMS best practic
 license: MIT
 metadata:
   author: growlf
-  version: "0.1.0"
+  version: "0.5.0"
 ---
 
 # DjangoCMS Reviewer
