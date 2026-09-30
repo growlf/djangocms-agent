@@ -29,6 +29,27 @@ This agent provides expert guidance on the entire django-cms 5.x stack:
 - **Middleware** — Middleware ordering, CMS settings, language config
 - **Migrations** — Zero-downtime CMS migrations, data migrations, version upgrades
 
+## Visual Validation
+
+Before and after every CMS change, run the visual check script:
+
+```bash
+# Check a page (default desktop 1280×800)
+python scripts/visual_check.py http://localhost:8000/ --expect-text "Welcome"
+
+# Mobile viewport
+python scripts/visual_check.py http://localhost:8000/ --mobile
+
+# Save screenshot to custom path
+python scripts/visual_check.py http://localhost:8000/ --out /tmp/verify.png
+
+# With login (password from environment variable)
+python scripts/visual_check.py http://localhost:8000/ --login admin:DJANGO_PASS
+```
+
+Exit code 0 = no issues, 1 = issues found, 2 = script/browser error.
+If you cannot view images, rely on the printed text and exit code; do not claim visual confirmation.
+
 ## Installation
 
 ### Option 1: Skills CLI (recommended)
