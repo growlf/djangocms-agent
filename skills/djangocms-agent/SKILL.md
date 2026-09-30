@@ -394,18 +394,9 @@ agents in addition to CMS-specific guidance:
 4. **Django migrations** → follow `django-expert` migrations + `djangocms-migration` for CMS-specific patterns
 5. **Django testing** → follow `django-expert` testing guidance
 
-## Skills
+## Scope
 
-| Skill | Trigger Files |
-|-------|---------------|
-| `djangocms-architecture` | `cms/urls.py`, `CMS_TEMPLATES`, `cms.py` |
-| `djangocms-pages` | `Page`, `PageUrl`, `PageContent`, `create_page` |
-| `djangocms-placeholders` | `Placeholder`, `render_block`, `{% cms_placeholder %}` |
-| `djangocms-templates` | CMS templates, `{% load cms_tags %}`, `{% show_menu %}` |
-| `djangocms-admin` | `cms.admin.*`, `PageAdmin`, plugin admin files |
-| `djangocms-plugins` | Custom plugin files, `CMSConfig`, apphooks |
-| `djangocms-middleware` | `MIDDLEWARE`, CMS settings, CMS configuration |
-| `djangocms-migration` | CMS migrations, `RunPython` on CMS models |
+This single skill covers pages, placeholders, templates, plugins, admin, middleware and migrations. Detailed material is in the files under references/.
 
 ## CMS Gotchas (from TheNetYeti)
 

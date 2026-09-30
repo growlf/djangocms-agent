@@ -59,14 +59,7 @@ git submodule add https://github.com/growlf/djangocms-agent .agents/skills/djang
 
 | Skill | Focus |
 |-------|-------|
-| `djangocms-agent` | Main orchestrator — project structure, CMS_TEMPLATES, page layout |
-| `djangocms-pages` | Page tree operations, slugs, language handling, template assignment |
-| `djangocms-placeholders` | Placeholder regions, content plugins, sekizai integration |
-| `djangocms-templates` | CMS templates, sekizai, menu rendering, nav |
-| `djangocms-admin` | Admin customization, page admin, plugin registration |
-| `djangocms-plugins` | Custom plugin models, render methods, CMS config, apphooks |
-| `djangocms-middleware` | Middleware ordering, app settings, CMS configuration |
-| `djangocms-migration` | Zero-downtime CMS migrations, data migrations, version upgrades |
+| `djangocms-agent` | Main orchestrator — project structure, CMS_TEMPLATES, page layout, placeholders, templates, plugins, admin, middleware, migrations |
 | `djangocms-reviewer` | Code review for DjangoCMS projects |
 
 ## Usage
