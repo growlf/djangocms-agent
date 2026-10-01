@@ -9,7 +9,7 @@ renders every verified plugin.
 ## Quick start
 
     python3 -m venv venv
-    venv/bin/pip install -r requirements.txt
+    venv/bin/pip install -r requirements-dev.txt  # requirements.txt = production only
     export DJANGO_DEBUG=1 DJANGO_SECRET_KEY=dev
     venv/bin/python manage.py migrate
     venv/bin/python manage.py createsuperuser

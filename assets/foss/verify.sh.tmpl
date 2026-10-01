@@ -10,7 +10,7 @@
 #                         (still on the login form afterwards = FAIL, so VERIFY RESULT: FAIL)
 # Final line: VERIFY RESULT: PASS | FAIL | INCOMPLETE.  Exit: 0 pass, 1 fail, 3 incomplete (visual skipped).
 set -u
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 ROOT=$(pwd)
 PY="$ROOT/venv/bin/python"; [ -x "$PY" ] || PY=$(command -v python3)
 OWN_APPS="starter"   # add your own apps here (space separated)
