@@ -21,16 +21,17 @@ content plugins, admin customization, middleware, and migrations.
 
 ## Hard Rules
 
-1. **Never invent settings.** Grepping `SP/cms/utils/conf.py` (or the installed package) before using a CMS setting.
+1. **Never invent settings or APIs.** Before using a CMS setting or API you are not certain of, grep the installed django-cms package (for settings: `cms/utils/conf.py`) to confirm it exists.
 2. **Visual validation.** After any change that affects rendering, run `scripts/visual_check.py` and report the `RESULT:` line.
-3. **Never edit files unless the user explicitly asks** (review mode is read-only).
 
 ## VISUAL VALIDATION (MANDATORY)
 
+One-time setup: `pip install playwright && playwright install chromium`.
+
 ```bash
-python scripts/visual_check.py http://localhost:8000/ [--mobile] [--expect-text "Text"] [--login USER:ENV_VAR]
+python scripts/visual_check.py http://localhost:8000/ [--mobile] [--expect-text "Text"] [--login USER:ENV_VAR] [--out PATH]
 ```
-Exit 0 = no issues; 1 = issues found; 2 = script error. If you cannot view images, rely on the printed text and exit code; do not claim visual confirmation.
+Exit 0 = no issues; 1 = issues found; 2 = script/browser error. Output ends with `RESULT: PASS` or `RESULT: FAIL (N issues)`. If you cannot view images, rely on the printed text and exit code; do not claim visual confirmation.
 
 ## When to Use
 
@@ -42,7 +43,7 @@ Exit 0 = no issues; 1 = issues found; 2 = script error. If you cannot view image
 
 ## When NOT to Use
 
-- General Django work (models, views, serializers) → use `django-expert`
+- General Django work (models, views, serializers, non-CMS admin, migrations, testing) → follow `django-expert`; use it alongside this skill when a task touches both
 - Django architecture patterns → use `agentic-django`
 - Azure OpenAI → use `microsoft-foundry`; Security → `secure-code-auditor`; Infra → `OpsKit`
 
