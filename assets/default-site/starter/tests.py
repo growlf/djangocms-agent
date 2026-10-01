@@ -94,6 +94,32 @@ class SeedTests(TestCase):
 
 
 @override_settings(MEDIA_ROOT=_MEDIA)
+class SampleImageTests(TestCase):
+    """D4: the style page's Picture sample must be legible (large, high-contrast text), not tiny default-font text."""
+
+    def test_sample_image_is_deterministic_small_and_high_contrast(self):
+        from PIL import Image as PILImage
+        from starter.management.commands.seed_site import sample_image_bytes
+        data = sample_image_bytes()
+        self.assertEqual(data, sample_image_bytes())
+        self.assertLess(len(data), 100_000)
+        img = PILImage.open(__import__("io").BytesIO(data)).convert("RGB")
+        self.assertEqual(img.size, (1200, 600))
+        panel = img.getpixel((200, 300))  # inside the text panel, away from the glyphs
+        self.assertLess(sum(panel), 90)  # near-black
+        # big glyphs: plenty of near-white pixels in the title band (default 10px text gave a few hundred)
+        band = img.crop((250, 220, 950, 320))
+        white = sum(1 for px in band.getdata() if min(px) > 235)
+        self.assertGreater(white, 4000)
+
+    @override_settings(MEDIA_ROOT=_MEDIA)
+    def test_seeded_style_page_uses_the_new_sample(self):
+        from filer.models import Image
+        seed()
+        self.assertTrue(Image.objects.filter(original_filename="style-sample-v2.png").exists())
+        self.assertFalse(Image.objects.filter(original_filename="style-sample.png").exists())
+
+
 class SeedVersioningTests(TestCase):
     """Seeding goes through djangocms-versioning: published content is never edited in place."""
 
@@ -223,6 +249,16 @@ class ThemeTests(TestCase):
         for needle in ('class="navbar-toggler"', 'data-bs-toggle="collapse"', 'data-bs-target="#site-nav"',
                        'aria-controls="site-nav"', 'aria-label="Toggle navigation"', 'id="site-nav"', "navbar-expand-lg"):
             self.assertContains(r, needle)
+
+    def test_theme_toggle_button_on_every_page(self):
+        for path in ("/", "/about/", "/style-and-capabilities/"):
+            r = self.client.get(path)
+            self.assertContains(r, "data-theme-toggle", msg_prefix=path)
+            self.assertContains(r, 'aria-label="Dark mode"', msg_prefix=path)
+            self.assertContains(r, 'aria-pressed="false"', msg_prefix=path)
+            html = r.content.decode()
+            self.assertLess(html.index("data-theme-toggle"), html.index('class="collapse navbar-collapse"'))  # outside the hamburger
+            self.assertLess(html.index("js/theme.js"), html.index("</head>"))  # applied before first paint
 
     def test_theme_script_and_skip_link(self):
         r = self.client.get("/")

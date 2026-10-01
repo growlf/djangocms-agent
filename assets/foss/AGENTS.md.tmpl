@@ -56,6 +56,15 @@ Take screenshots before and after any change that affects rendering
 - Never invent django-cms settings: grep the installed `cms/utils/conf.py` first.
 - The `starter.HtmlBlock` plugin renders raw HTML; it is for trusted editors only.
 
+## Security rules for the login
+
+- Login throttling is django-axes (`axes` in `INSTALLED_APPS`, `AxesStandaloneBackend` first in
+  `AUTHENTICATION_BACKENDS`, `AxesMiddleware` last). Keep that order. Tune with `DJANGO_LOGIN_FAILURE_LIMIT`,
+  `DJANGO_LOGIN_COOLOFF_MINUTES`, `DJANGO_LOGIN_LOCKOUT_BY` (see README); unlock with `manage.py axes_reset`.
+- The client IP comes from `{{PROJECT_PACKAGE}}/security.py`: `X-Forwarded-For` is trusted only when `DJANGO_BEHIND_PROXY=1`.
+  Do not read that header anywhere else and do not widen it.
+- Tests must not need a lockout reset (they use `force_login`); a test that fails logins uses `override_settings`.
+
 ## Governance - how an AI agent should behave in this project
 
 - Never merge, tag a release, or push to the default branch directly. Open a PR.

@@ -39,6 +39,23 @@ Playwright for the visual step; install it once in a scratch venv, not system Py
 Without it `bin/verify.sh` ends `VERIFY RESULT: INCOMPLETE`. The verification server runs with
 `DJANGO_DEBUG_TOOLBAR=0`.
 
+## Login throttling and the theme toggle
+
+- **Login throttling (django-axes):** 5 failed admin/CMS logins (`DJANGO_LOGIN_FAILURE_LIMIT`) lock that username + IP
+  for 60 minutes (`DJANGO_LOGIN_COOLOFF_MINUTES`; 0 = until an operator unlocks). While locked the right password is
+  refused too and the visitor sees a 429 page; other pages and users are unaffected. Unlock: `python manage.py axes_reset`
+  (everyone), `axes_reset_ip IP`, `axes_reset_username NAME` or `axes_reset_ip_username IP NAME`, run where the app
+  runs. `axes_list_attempts` shows what is recorded, `/admin/axes/` has the logs.
+  `DJANGO_LOGIN_FAILURE_LIMIT=0` turns it off; `DJANGO_LOGIN_LOCKOUT_BY=ip` counts per address only (stricter, but one
+  attacker locks everyone behind that address). Counters live in the database, so all gunicorn workers share them.
+  The client IP is `REMOTE_ADDR`; `X-Forwarded-For` is **only** trusted with `DJANGO_BEHIND_PROXY=1` (then the entry
+  `DJANGO_PROXY_COUNT` hops from the right, default 1: your proxy must append to or overwrite that header and be the
+  only way to reach the app port). Without a proxy flag a forged header cannot dodge or cause a lockout. Behind a proxy
+  that does NOT send the header, every client shares the proxy's address.
+- **Theme toggle:** the header button switches light/dark and remembers the choice in the browser (`localStorage` key
+  `theme`); without a stored choice the page follows the OS, live. Without JavaScript the OS media query still applies
+  and the button is hidden.
+
 {{DOCKER_README}}## Known warnings and development extras
 
 - `treebeard.E001` (a warning about `cms.PageManager`) is printed on every `manage.py` command. It comes
