@@ -44,8 +44,8 @@ Without it `bin/verify.sh` ends `VERIFY RESULT: INCOMPLETE`. The verification se
 - **Login throttling (django-axes):** 5 failed admin/CMS logins (`DJANGO_LOGIN_FAILURE_LIMIT`) lock that username + IP
   for 60 minutes (`DJANGO_LOGIN_COOLOFF_MINUTES`; 0 = until an operator unlocks). While locked the right password is
   refused too and the visitor sees a 429 page; other pages and users are unaffected. Unlock: `python manage.py axes_reset`
-  (everyone), `axes_reset_ip IP`, `axes_reset_username NAME` or `axes_reset_ip_username IP NAME`; in Docker prefix
-  `docker compose exec app`. `axes_list_attempts` shows what is recorded, `/admin/axes/` has the logs.
+  (everyone), `axes_reset_ip IP`, `axes_reset_username NAME` or `axes_reset_ip_username IP NAME`, run where the app
+  runs. `axes_list_attempts` shows what is recorded, `/admin/axes/` has the logs.
   `DJANGO_LOGIN_FAILURE_LIMIT=0` turns it off; `DJANGO_LOGIN_LOCKOUT_BY=ip` counts per address only (stricter, but one
   attacker locks everyone behind that address). Counters live in the database, so all gunicorn workers share them.
   The client IP is `REMOTE_ADDR`; `X-Forwarded-For` is **only** trusted with `DJANGO_BEHIND_PROXY=1` (then the entry

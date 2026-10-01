@@ -709,3 +709,30 @@ def test_container_file_tests_skip_without_docker_files():
         assert f"@docker_only\nclass {cls}" in text, cls
     assert "@docker_only\nclass ComposeSplitTests" in (site / "tests_release.py").read_text()
     assert "SkipTest" in (site / "tests_pins.py").read_text()  # whole module skips without bin/pin_images.py
+
+
+def test_login_throttling_is_pinned_wired_and_documented(tmp_path):
+    root = scaffold(tmp_path)
+    assert "django-axes==8.3.1" in (root / "requirements.txt").read_text().splitlines()
+    settings = (root / "acme_garden_club" / "settings.py").read_text()
+    assert "'axes'," in settings and "AxesStandaloneBackend" in settings
+    assert settings.index("'axes.backends.AxesStandaloneBackend'") < settings.index("'django.contrib.auth.backends.ModelBackend'")
+    assert "'axes.middleware.AxesMiddleware',  #" in settings  # present; the starter tests assert it is last
+    assert (root / "acme_garden_club" / "security.py").is_file()
+    assert (root / "templates" / "axes_lockout.html").is_file()
+    env = (root / ".env.example").read_text()
+    for needle in ("DJANGO_LOGIN_FAILURE_LIMIT", "DJANGO_LOGIN_COOLOFF_MINUTES", "DJANGO_PROXY_COUNT"):
+        assert needle in env, needle
+    readme, agents = (root / "README.md").read_text(), (root / "AGENTS.md").read_text()
+    assert "axes_reset" in readme and "X-Forwarded-For" in readme
+    assert "acme_garden_club/security.py" in agents and "{{" not in agents
+    compose = (root / "docker-compose.yml").read_text()
+    for name in ("DJANGO_LOGIN_FAILURE_LIMIT", "DJANGO_LOGIN_COOLOFF_MINUTES", "DJANGO_PROXY_COUNT"):
+        assert f"{name}: ${{{name}" in compose
+
+
+def test_no_docker_site_still_ships_throttling_and_its_tests(tmp_path):
+    root = scaffold(tmp_path, "--no-docker")
+    assert (root / "starter" / "tests_throttle.py").is_file()
+    assert "django-axes==8.3.1" in (root / "requirements.txt").read_text()
+    assert "axes_reset" in (root / "README.md").read_text()
