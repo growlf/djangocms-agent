@@ -136,6 +136,8 @@ pre code { background: none; border: 0; padding: 0; overflow-wrap: normal; }
 .site-header .navbar { background: var(--site-color-bg); }
 .site-logo { color: var(--site-color-text); }
 .site-logo:hover { color: var(--site-color-link); }
+/* the dropdown toggle is a <button> (Space/Enter work natively); make it look like the other links */
+.navbar button.nav-link { background: none; border: 0; font: inherit; text-align: left; cursor: pointer; }
 .navbar .nav-link.active { font-weight: 600; box-shadow: inset 0 -3px 0 var(--site-color-primary); }
 @media (max-width: 991.98px) { .navbar .nav-link.active { box-shadow: none; border-left: 3px solid var(--site-color-primary); padding-left: 0.5rem; } }
 .dropdown-menu { max-width: 90vw; min-width: 16rem; }
@@ -171,3 +173,8 @@ pre code { background: none; border: 0; padding: 0; overflow-wrap: normal; }
   pre { break-inside: avoid; }
 }
 .sidebar h3 { font-size: 1.25rem; }
+
+/* Google Map fallback notice and video fallback link (templates/djangocms_googlemap, djangocms_video) */
+.site-map-notice { border: 1px dashed var(--site-color-border); border-radius: var(--site-radius); padding: .75rem 1rem; color: var(--site-color-text-muted); }
+.site-map-notice p { margin: 0; }
+.site-video-fallback { margin: .5rem 0 0; font-size: .9375rem; }

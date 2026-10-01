@@ -7,12 +7,24 @@ admindocs prefix: Django's own documented default is ``admin/doc/``; this site u
 (the prefix the skill documents). Pick one and use it consistently.
 """
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
+from django.http import Http404
 from django.urls import include, path, re_path
-from django.views.static import serve as serve_media
+from django.views.static import serve as serve_static
 
 from .health import health
+
+PRIVATE_MEDIA_PREFIXES = ('filer_private',)  # filer's private storage lives inside MEDIA_ROOT (see settings.py)
+
+
+def serve_media(request, path):
+    """Serve MEDIA_ROOT, except filer's private storage: files marked private in the admin are kept
+    out of the public /media/ URL (they are stored and backed up with the media volume, but this site
+    does not download them; use public files for anything visitors need)."""
+    if path.startswith(PRIVATE_MEDIA_PREFIXES):
+        raise Http404("private media is not served")
+    return serve_static(request, path, document_root=settings.MEDIA_ROOT)
+
 
 urlpatterns = [
     path('health/', health, name='health'),  # container healthcheck; before the CMS catch-all
@@ -21,10 +33,8 @@ urlpatterns = [
 ]
 if getattr(settings, 'USE_DEBUG_TOOLBAR', False):  # same switch as settings.py (DEBUG and DJANGO_DEBUG_TOOLBAR)
     urlpatterns += [path('__debug__/', include('debug_toolbar.urls'))]
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)  # dev-only media
-elif getattr(settings, 'SERVE_MEDIA', False):
-    # DEBUG off and DJANGO_SERVE_MEDIA=1 (the container default): Django serves uploads itself. Put
-    # nginx/caddy in front and unset the flag for heavy traffic.
-    urlpatterns += [re_path(r'^media/(?P<path>.*)$', serve_media, {'document_root': settings.MEDIA_ROOT})]
+if settings.DEBUG or getattr(settings, 'SERVE_MEDIA', False):
+    # DEBUG: dev media. DEBUG off and DJANGO_SERVE_MEDIA=1 (the container default): Django serves uploads
+    # itself, fine for a small site; put nginx/caddy in front and unset the flag for heavy traffic.
+    urlpatterns += [re_path(r'^media/(?P<path>.*)$', serve_media)]
 urlpatterns += [path('', include('cms.urls'))]

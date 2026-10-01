@@ -1,8 +1,8 @@
 {% load menu_tags %}{% for child in children %}{% if child.level == 0 %}
 <li class="nav-item{% if child.children %} dropdown{% endif %}">
   {% if child.children %}
-  <a class="nav-link dropdown-toggle{% if child.selected or child.ancestor %} active{% endif %}" href="#" id="dd-{{ child.id }}"
-     role="button" data-bs-toggle="dropdown" aria-expanded="false">{{ child.get_menu_title }}</a>
+  <button type="button" class="nav-link dropdown-toggle{% if child.selected or child.ancestor %} active{% endif %}" id="dd-{{ child.id }}"
+     data-bs-toggle="dropdown" aria-expanded="false">{{ child.get_menu_title }}</button>
   <ul class="dropdown-menu" aria-labelledby="dd-{{ child.id }}">
     <li><a class="dropdown-item{% if child.selected %} active{% endif %}" href="{{ child.attr.redirect_url|default:child.get_absolute_url }}"{% if child.selected %} aria-current="page"{% endif %}>{{ child.get_menu_title }} <span class="text-body-secondary small">(overview)</span></a></li>
     <li><hr class="dropdown-divider"></li>
