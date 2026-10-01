@@ -1,0 +1,210 @@
+"""Settings for the default DjangoCMS 5 site.
+
+This file is the complete settings module of the default site, with two placeholders for the scaffold:
+  __PROJECT_NAME__  the Python package that holds settings.py/urls.py (also the directory name)
+  __SITE_NAME__     the human-readable site name shown in the navbar, title and footer
+
+Copy it to ``__PROJECT_NAME__/settings.py`` or merge the sections you need into an existing settings.py.
+Every setting here is a real django-cms 5.1.3 / Django 5.2 setting (checked against the installed packages).
+Not set on purpose: CMS_TOOLBAR_REQUIRE_SUPERUSER and ANONYMOUS_EDIT do not exist in django-cms 5.1.3
+(see cms/utils/conf.py); the real switch is CMS_TOOLBAR_ANONYMOUS_ON.
+"""
+
+import os
+from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
+
+from starter.constants import CONTENT_SLOT
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Configuration comes from the environment (see .env.example).
+DEBUG = os.environ.get('DJANGO_DEBUG', '').lower() in ('1', 'true', 'yes', 'on')
+
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '')
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-dev-only-key'  # dev only, never used when DEBUG is off
+    else:
+        raise ImproperlyConfigured(
+            'DJANGO_SECRET_KEY is not set. Set it, or run with DJANGO_DEBUG=1 for local development.'
+        )
+
+ALLOWED_HOSTS = [
+    h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if h.strip()
+]
+if DEBUG and not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+
+
+# --- Applications -----------------------------------------------------------------------------
+
+INSTALLED_APPS = [
+    'djangocms_admin_style',  # must precede django.contrib.admin
+    'djangocms_text',
+    'starter.apps.StarterConfig',
+    'cms',
+    'menus',
+    'treebeard',
+    'sekizai',
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'django.contrib.sites',
+    'django.contrib.admindocs',  # /admin/docs/ (needs docutils; see urls_fragment.py)
+    # Content plugins and workflow. Only plugins verified to pass check + migrate + render on
+    # cms 5.1.3 / Django 5.2 are listed; see references/plugins.md for the ones that fail.
+    'filer',
+    'easy_thumbnails',
+    'djangocms_attributes_field',
+    'djangocms_alias',
+    'djangocms_link',
+    'djangocms_picture',
+    'djangocms_video',
+    'djangocms_file',
+    'djangocms_style',
+    'djangocms_icon',
+    'djangocms_bootstrap5',
+    'djangocms_bootstrap5.contrib.bootstrap5_alerts',
+    'djangocms_bootstrap5.contrib.bootstrap5_badge',
+    'djangocms_bootstrap5.contrib.bootstrap5_card',
+    'djangocms_bootstrap5.contrib.bootstrap5_collapse',
+    'djangocms_bootstrap5.contrib.bootstrap5_content',
+    'djangocms_bootstrap5.contrib.bootstrap5_jumbotron',
+    'djangocms_bootstrap5.contrib.bootstrap5_listgroup',
+    'djangocms_bootstrap5.contrib.bootstrap5_picture',
+    'djangocms_bootstrap5.contrib.bootstrap5_tabs',
+    'djangocms_bootstrap5.contrib.bootstrap5_utilities',
+    'djangocms_googlemap',
+    'djangocms_versioning',  # draft/publish workflow; keep after djangocms_alias
+]
+
+# ApphookReloadMiddleware must stay FIRST. The debug toolbar goes at index 1 (DEBUG only).
+MIDDLEWARE = [
+    'cms.middleware.utils.ApphookReloadMiddleware',
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'cms.middleware.user.CurrentUserMiddleware',
+    'cms.middleware.page.CurrentPageMiddleware',
+    'cms.middleware.toolbar.ToolbarMiddleware',
+    'cms.middleware.language.LanguageCookieMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+if DEBUG:
+    # Debug toolbar: development only, never installed when DEBUG is off.
+    INSTALLED_APPS += ['debug_toolbar']
+    MIDDLEWARE.insert(1, 'debug_toolbar.middleware.DebugToolbarMiddleware')
+    INTERNAL_IPS = ['127.0.0.1', '::1']  # exact IPs only (no CIDR)
+    DEBUG_TOOLBAR_CONFIG = {'SHOW_COLLAPSED': True}  # start as a small handle, not covering the page
+
+ROOT_URLCONF = '__PROJECT_NAME__.urls'
+WSGI_APPLICATION = '__PROJECT_NAME__.wsgi.application'
+
+# Explicit loaders. Django raises ImproperlyConfigured if 'loaders' is combined with APP_DIRS: True,
+# so APP_DIRS is intentionally absent. The app_directories loader is needed for plugin templates.
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [BASE_DIR / 'templates'],
+        'OPTIONS': {
+            'loaders': [
+                'django.template.loaders.filesystem.Loader',
+                'django.template.loaders.app_directories.Loader',  # needed for plugin templates
+            ],
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+                'sekizai.context_processors.sekizai',
+                'cms.context_processors.cms_settings',
+                '__PROJECT_NAME__.context_processors.site',  # exposes SITE_NAME as site_name
+            ],
+        },
+    },
+]
+
+
+# --- Database, auth, i18n ---------------------------------------------------------------------
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
+
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
+
+TIME_ZONE = 'UTC'
+USE_I18N = True
+USE_TZ = True
+
+# The seed code (starter/seeding.py LANG) assumes 'en'. Change both together.
+LANGUAGE_CODE = 'en'
+LANGUAGES = [('en', 'English')]
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+SITE_ID = 1
+
+
+# --- Static and media files -------------------------------------------------------------------
+
+STATIC_URL = 'static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # collectstatic target (gitignored)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+SITE_NAME = '__SITE_NAME__'  # shown through the context processor as {{ site_name }}
+
+
+# --- django CMS -------------------------------------------------------------------------------
+
+CMS_TEMPLATES = [
+    ('landing.html', 'Landing page (hero)'),
+    ('standard.html', 'Standard page (right sidebar)'),
+]
+# No 'plugins' allow-lists: every installed plugin is available in every slot.
+CMS_PLACEHOLDER_CONF = {
+    CONTENT_SLOT: {'name': 'Content'},
+    'sidebar': {'name': 'Sidebar'},
+    'hero': {'name': 'Hero'},
+    'feature_1': {'name': 'Feature 1'},
+    'feature_2': {'name': 'Feature 2'},
+    'feature_3': {'name': 'Feature 3'},
+    'cta': {'name': 'Call to action'},
+}
+# Hide the toolbar login prompt from anonymous visitors. Verified in cms/utils/conf.py of 5.1.3;
+# CMS_TOOLBAR_REQUIRE_SUPERUSER and ANONYMOUS_EDIT do not exist there. Editing rights come from
+# Django/CMS permissions.
+CMS_TOOLBAR_ANONYMOUS_ON = False
+
+THUMBNAIL_PROCESSORS = (
+    'easy_thumbnails.processors.colorspace',
+    'easy_thumbnails.processors.autocrop',
+    'filer.thumbnail_processors.scale_and_crop_with_subject_location',
+    'easy_thumbnails.processors.filters',
+)
+X_FRAME_OPTIONS = 'SAMEORIGIN'  # the CMS toolbar frames same-origin pages
+
+# djangocms-text sanitises HTML (nh3). Allow id on headings so in-page anchors/TOC links survive.
+TEXT_ADDITIONAL_ATTRIBUTES = {'h2': {'id'}, 'h3': {'id'}}
+
+# Google Maps plugin: without an API key Google overlays an error dialog on the map, so the seed
+# only adds the sample map when GOOGLE_MAPS_API_KEY is set.
+DJANGOCMS_GOOGLEMAP_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', '')

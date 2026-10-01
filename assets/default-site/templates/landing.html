@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load cms_tags %}
+{% block body_class %}layout-landing{% endblock %}
+{% block container_class %}container-fluid p-0{% endblock %}
+{% block main %}
+<section class="hero text-center text-lg-start py-5" aria-label="Introduction">
+  <div class="container py-lg-5">
+    <div class="row"><div class="col-lg-8">{% placeholder "hero" %}</div></div>
+  </div>
+</section>
+
+<section class="container py-5" aria-label="Features">
+  <div class="row g-4">
+    <div class="col-md-4"><div class="card h-100"><div class="card-body">{% placeholder "feature_1" %}</div></div></div>
+    <div class="col-md-4"><div class="card h-100"><div class="card-body">{% placeholder "feature_2" %}</div></div></div>
+    <div class="col-md-4"><div class="card h-100"><div class="card-body">{% placeholder "feature_3" %}</div></div></div>
+  </div>
+</section>
+
+<section class="container pb-5">
+  <div class="content">{% placeholder "content" %}</div>
+</section>
+
+<section class="cta-band text-center py-5" aria-label="Call to action">
+  <div class="container">{% placeholder "cta" %}</div>
+</section>
+{% endblock %}
