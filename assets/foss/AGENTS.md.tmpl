@@ -1,0 +1,66 @@
+# AGENTS.md - {{SITE_NAME}}
+
+{{PURPOSE}}
+
+This file is the canonical, tool-agnostic instruction set for AI coding agents working in this
+repository (Claude Code, OpenCode, and any other AGENTS.md-compatible tool). See https://agents.md/.
+Claude Code reads `CLAUDE.md`, which imports this file.
+
+## What this site is for
+
+{{PURPOSE}}
+
+Every content, design and copy decision should serve that purpose. When in doubt, ask the human.
+
+## Stack
+
+DjangoCMS 5.x on Django 5.2 with Bootstrap 5.3 (vendored under `static/vendor/bootstrap`, no CDN),
+djangocms-versioning (draft/publish), SQLite for development. Python package: `{{PROJECT_PACKAGE}}`.
+Scaffolded by the `djangocms-agent` skill (`bin/new-site.py`); load that skill for CMS gotchas.
+
+## Setup commands
+
+    python3 -m venv venv && venv/bin/pip install -r requirements.txt
+    export DJANGO_DEBUG=1 DJANGO_SECRET_KEY=dev
+    venv/bin/python manage.py migrate
+    venv/bin/python manage.py seed_pages && venv/bin/python manage.py seed_site
+    venv/bin/python manage.py runserver 8010
+
+`DJANGO_DEBUG=1` is for local development only. Without it, `DJANGO_SECRET_KEY` and
+`DJANGO_ALLOWED_HOSTS` must be set (see `.env.example`).
+
+## Layout
+
+- `{{PROJECT_PACKAGE}}/` - settings, urls, wsgi/asgi, context processor (`site_name`)
+- `starter/` - app with the `HtmlBlock` plugin, seed commands (`seed_pages`, `seed_site`) and tests
+- `templates/` - `base.html`, `landing.html`, `standard.html`, menu templates
+- `static/` - `css/site.css`, `js/theme.js`, vendored Bootstrap
+- `scripts/visual_check.py` - Playwright screenshot checker; `bin/verify.sh` - the full check
+
+## Verification (mandatory)
+
+Before telling a human a change works, run `bin/verify.sh` and look at the screenshots it writes to
+`verify-shots/` (desktop and mobile). The final line is `VERIFY RESULT: PASS`, `FAIL` or
+`INCOMPLETE`. `INCOMPLETE` means the visual step did not run (Playwright missing): report that, do
+not claim the pages were visually verified. One-time setup: `pip install playwright && playwright
+install chromium` (then `export PLAYWRIGHT_PYTHON=/path/to/that/python` if it is not the project venv).
+
+Take screenshots before and after any change that affects rendering
+(`python scripts/visual_check.py URL [--mobile] --out PATH`).
+
+## CMS rules
+
+- Seed commands are idempotent and publish through djangocms-versioning; keep them that way.
+- Never invent django-cms settings: grep the installed `cms/utils/conf.py` first.
+- The `starter.HtmlBlock` plugin renders raw HTML; it is for trusted editors only.
+
+## Governance - how an AI agent should behave in this project
+
+- Never merge, tag a release, or push to the default branch directly. Open a PR.
+- Attribution and licensing matter. Say so in the PR when you bring in third-party code, and flag
+  anything not compatible with this project's `{{LICENSE_SPDX}}` license.
+- Propose, do not unilaterally change, governance files (this file, `CONTRIBUTING.md`,
+  `CODE_OF_CONDUCT.md`, `SECURITY.md`, `LICENSE`).
+- Security issues go through `SECURITY.md`, never a public issue or PR.
+- Flag scope creep instead of just doing it.
+- Never commit secrets, the database, or the admin password.

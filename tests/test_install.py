@@ -267,5 +267,35 @@ class TestAssetsSymlink(Base):
             compile(path.read_text(), str(path), "exec")
 
 
+class TestInstalledScaffolder(Base):
+    """bin/new-site.py must be runnable from an installed skill (link and copy modes)."""
+
+    def _scaffold_from_install(self, flag):
+        self.assertEqual(self.run_cli(flag).returncode, 0)
+        script = self.proj / ".claude/skills/djangocms-agent/bin/new-site.py"
+        self.assertTrue(script.is_file())
+        out = Path(tempfile.mkdtemp(prefix="dcms-site-"))
+        self.addCleanup(shutil.rmtree, out, True)
+        r = subprocess.run([sys.executable, str(script), "--name", "Demo Site", "--purpose", "A demo",
+                            "--parent-dir", str(out), "--no-venv", "--yes"],
+                           capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        site = out / "demo-site"
+        self.assertTrue((site / "demo_site/settings.py").is_file())
+        self.assertTrue((site / "scripts/visual_check.py").is_file())
+        self.assertTrue((site / "static/vendor/bootstrap/LICENSE").is_file())
+
+    def test_link_install(self):
+        self._scaffold_from_install("--link")
+
+    def test_copy_install(self):
+        self._scaffold_from_install("--copy")
+
+    def test_source_bin_symlink(self):
+        link = REPO / "skills/djangocms-agent/bin"
+        self.assertTrue(link.is_symlink())
+        self.assertEqual(os.readlink(link), "../../bin")
+
+
 if __name__ == "__main__":
     unittest.main()

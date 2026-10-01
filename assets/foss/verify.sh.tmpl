@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# Full verification for {{SITE_NAME}}. Run it before telling anyone a change works, then LOOK at the
+# screenshots in verify-shots/.
+#
+# Steps: manage.py check | makemigrations --check (own apps) | tests | seed idempotency |
+#        visual_check.py on key URLs, desktop + mobile (needs Playwright).
+# Env:   PLAYWRIGHT_PYTHON  python that can `import playwright` (default: project venv, then python3)
+#        VERIFY_PORT        port for the temporary server (default: first free port from 8010)
+#        VERIFY_ADMIN_PASSWORD  if set, also checks /admin/ logged in as `admin`
+# Final line: VERIFY RESULT: PASS | FAIL | INCOMPLETE.  Exit: 0 pass, 1 fail, 3 incomplete (visual skipped).
+set -u
+cd "$(dirname "$0")/.."
+ROOT=$(pwd)
+PY="$ROOT/venv/bin/python"; [ -x "$PY" ] || PY=$(command -v python3)
+OWN_APPS="starter"   # add your own apps here (space separated)
+PAGES="/ /about/ /style-and-capabilities/"
+SHOTS="$ROOT/verify-shots"
+export DJANGO_DEBUG=1 DJANGO_SECRET_KEY=verify-only-not-a-secret
+FAIL=0
+step() { echo; echo "== $*"; }
+run()  { "$@" || { echo "FAILED: $*"; FAIL=1; return 1; }; }
+
+step "manage.py check"
+run "$PY" manage.py check
+
+step "makemigrations --check ($OWN_APPS)"
+# shellcheck disable=SC2086
+run "$PY" manage.py makemigrations --check --dry-run $OWN_APPS
+
+step "tests ($OWN_APPS)"
+# shellcheck disable=SC2086
+run "$PY" manage.py test $OWN_APPS
+
+step "seed idempotency"
+count() { "$PY" manage.py shell -c "from cms.models import Page, PageContent; print(Page.objects.count(), PageContent.admin_manager.count())" | tail -n 1; }
+run "$PY" manage.py seed_pages && run "$PY" manage.py seed_site
+BEFORE=$(count)
+run "$PY" manage.py seed_pages && run "$PY" manage.py seed_site
+AFTER=$(count)
+if [ "$BEFORE" = "$AFTER" ]; then echo "seed idempotent: pages/contents $BEFORE unchanged"; else echo "FAILED: seed changed counts $BEFORE -> $AFTER"; FAIL=1; fi
+
+step "visual check (desktop + mobile)"
+PW=""
+for cand in "${PLAYWRIGHT_PYTHON:-}" "$ROOT/venv/bin/python" "$(command -v python3)"; do
+  [ -n "$cand" ] && [ -x "$cand" ] && "$cand" -c "import playwright" 2>/dev/null && { PW="$cand"; break; }
+done
+INCOMPLETE=0
+if [ -z "$PW" ]; then
+  echo "SKIPPED: Playwright is not installed, so NO visual verification was done."
+  echo "  Install: pip install playwright && playwright install chromium"
+  echo "  Then:    PLAYWRIGHT_PYTHON=/path/to/python bin/verify.sh"
+  INCOMPLETE=1
+else
+  PORT="${VERIFY_PORT:-$("$PY" - <<'PYEOF'
+import socket
+for p in range(8010, 8100):
+    s = socket.socket()
+    try:
+        s.bind(("127.0.0.1", p))
+        print(p); break
+    except OSError:
+        pass
+    finally:
+        s.close()
+PYEOF
+)}"
+  mkdir -p "$SHOTS"
+  "$PY" manage.py runserver "$PORT" --noreload >"$SHOTS/server.log" 2>&1 &
+  SERVER_PID=$!
+  trap 'kill "$SERVER_PID" 2>/dev/null; wait "$SERVER_PID" 2>/dev/null' EXIT
+  UP=0
+  for _ in $(seq 1 60); do
+    "$PY" -c "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:$PORT/', timeout=2)" 2>/dev/null && { UP=1; break; }
+    kill -0 "$SERVER_PID" 2>/dev/null || break
+    sleep 0.5
+  done
+  if [ "$UP" != 1 ]; then
+    echo "FAILED: dev server did not come up on port $PORT (see $SHOTS/server.log)"; FAIL=1
+  else
+    SITE=$("$PY" manage.py shell -c "from django.conf import settings; print(settings.SITE_NAME)" | tail -n 1)
+    for path in $PAGES; do
+      slug=$(printf '%s' "$path" | tr -c 'a-zA-Z0-9' '_' | sed -e 's/^_*//' -e 's/_*$//'); [ -n "$slug" ] || slug=home
+      for mode in desktop mobile; do
+        flag=""; [ "$mode" = mobile ] && flag="--mobile"
+        out="$SHOTS/${slug}_${mode}.png"
+        echo "-- $path ($mode) -> $out"
+        # shellcheck disable=SC2086
+        "$PW" scripts/visual_check.py "http://127.0.0.1:$PORT$path" $flag --expect-text "$SITE" --out "$out" || FAIL=1
+      done
+    done
+    if [ -n "${VERIFY_ADMIN_PASSWORD:-}" ]; then
+      echo "-- /admin/ (logged in as admin) -> $SHOTS/admin_desktop.png"
+      "$PW" scripts/visual_check.py "http://127.0.0.1:$PORT/admin/" --login admin:VERIFY_ADMIN_PASSWORD \
+        --out "$SHOTS/admin_desktop.png" || FAIL=1
+    fi
+    echo "Screenshots are in $SHOTS - open and LOOK at them before reporting."
+  fi
+fi
+
+echo
+if [ "$FAIL" != 0 ]; then echo "VERIFY RESULT: FAIL"; exit 1; fi
+if [ "$INCOMPLETE" != 0 ]; then echo "VERIFY RESULT: INCOMPLETE (visual step skipped)"; exit 3; fi
+echo "VERIFY RESULT: PASS"
