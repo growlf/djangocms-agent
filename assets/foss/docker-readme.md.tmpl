@@ -34,7 +34,9 @@ the debug toolbar off, production image without dev packages) as compose project
   language cookies Secure; optional `DJANGO_HSTS_SECONDS`, `DJANGO_HSTS_INCLUDE_SUBDOMAINS` and
   `DJANGO_SSL_REDIRECT` (all off by default; `/health/` is exempt from the redirect). **Warning:** never set
   `APP_BIND=0.0.0.0` together with `DJANGO_BEHIND_PROXY=1` unless only the proxy can reach the port,
-  otherwise any client can forge `X-Forwarded-Proto`.
+  otherwise any client can forge `X-Forwarded-Proto` (and `X-Forwarded-For`, which the login throttle then trusts).
+  Set `DJANGO_PROXY_COUNT` to the number of proxies in front of the app (default 1).
+- **Unlock a locked-out login:** `docker compose exec app python manage.py axes_reset` (see "Login throttling" above).
 - **Logs:** `docker compose logs -f app`.
 - **Backup:** `bin/docker-backup.sh [DIR]` writes `db.sql` and `media.tar.gz` (default `backups/<UTC time>`, mode
   600, refuses an existing directory). The stack must be running; keep backups private.

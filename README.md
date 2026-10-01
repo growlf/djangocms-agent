@@ -67,7 +67,9 @@ Playwright screenshots desktop + mobile), `bin/release.sh` + `CHANGELOG.md`, and
 Docker + PostgreSQL stack: production image (shared DB cache, Secure cookies behind a proxy, loopback hosts, digest-pinned
 images, `bin/docker-backup.sh`/`docker-restore.sh`, `bin/pin-images.sh`) on port 8889 via `APP_PORT`, and a separate
 dev stack (`bin/dev-up.sh`, debug toolbar, source bind-mounted, 127.0.0.1:8880). `requirements.txt` is production only,
-`requirements-dev.txt` adds the debug toolbar. Name and purpose must come from the human; `--dry-run` shows the
+`requirements-dev.txt` adds the debug toolbar. Admin login is throttled (django-axes: 5 failures lock username + IP for
+60 minutes, `manage.py axes_reset` unlocks; `X-Forwarded-For` trusted only with `DJANGO_BEHIND_PROXY=1`) and the header has a
+light/dark toggle (OS default). Name and purpose must come from the human; `--dry-run` shows the
 plan. Exit codes 0 ok, 1 step failed, 2 usage error. Full reference: `references/new-site.md`.
 Tests: `python3 -m pytest tests/`.
 

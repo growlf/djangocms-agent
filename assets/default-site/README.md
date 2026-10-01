@@ -67,6 +67,22 @@ default follows `APP_PORT` for localhost). `DJANGO_SERVE_MEDIA=1` serves uploads
 The generated README documents backup, restore, reset and proxy use; `references/project-setup.md` in the skill
 explains each setting.
 
+## Login throttling (django-axes)
+
+`axes` (pinned `django-axes==8.3.1`) counts failed logins in the database (shared by all gunicorn workers, SQLite and
+PostgreSQL alike). After `DJANGO_LOGIN_FAILURE_LIMIT` (5) failures the username + client IP is locked for
+`DJANGO_LOGIN_COOLOFF_MINUTES` (60; 0 = until reset) and gets a 429 page, even with the right password. Unlock with
+`python manage.py axes_reset` (also `axes_reset_ip`, `axes_reset_username`, `axes_reset_ip_username`). Limit 0 disables it;
+`DJANGO_LOGIN_LOCKOUT_BY=ip` is the stricter mode. The client IP is `REMOTE_ADDR`; `X-Forwarded-For` is trusted only with
+`DJANGO_BEHIND_PROXY=1` (`__PROJECT_NAME__/security.py`, `DJANGO_PROXY_COUNT` hops from the right). Settings block and order
+rules: `references/project-setup.md`. Tests: `starter/tests_throttle.py`.
+
+## Theme toggle
+
+The header button (`data-theme-toggle`, `static/js/theme.js`) flips light/dark, stores the choice in `localStorage`
+(`theme`) and otherwise follows the OS, live. The script runs in `<head>` (no flash); without JavaScript the
+`prefers-color-scheme` rule in `site.css` applies and the button stays hidden.
+
 ## Debug toolbar handle
 
 With `DJANGO_DEBUG=1` pages show a small green tab with a dark glyph on the right edge. That is the

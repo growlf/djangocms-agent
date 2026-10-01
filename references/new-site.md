@@ -124,6 +124,13 @@ and is not empty, or `--require-playwright` with Playwright not ready). It never
     proxy sends `X-Forwarded-Proto` (never together with `APP_BIND=0.0.0.0` unless only the proxy reaches the port).
     Create the admin user inside the stack: `docker compose exec app python manage.py createsuperuser`. The
     scaffolder never runs Docker; the Docker run is a separate step the user (or you) starts.
+- **Login throttling (every site, Docker or not):** django-axes 8.3.1 (database handler, shared by all gunicorn workers):
+  5 failed logins lock username + IP for 60 minutes (`DJANGO_LOGIN_FAILURE_LIMIT`, `DJANGO_LOGIN_COOLOFF_MINUTES`,
+  `DJANGO_LOGIN_LOCKOUT_BY`; limit 0 = off), friendly 429 page, unlock with `manage.py axes_reset`. `X-Forwarded-For` is
+  trusted only with `DJANGO_BEHIND_PROXY=1` (`DJANGO_PROXY_COUNT` hops from the right). `bin/verify.sh` does one
+  successful login (and the wrong-password check one failure), well under the limit; generated tests use `force_login`.
+  Why axes and what was rejected: `references/plugins.md`.
+- **Theme toggle:** header button, stored in `localStorage` (`theme`), OS default otherwise; see `references/templates-and-theme.md`.
 - **Prod/dev packages:** `requirements.txt` is production only; `requirements-dev.txt` is `-r requirements.txt` plus
   `django-debug-toolbar`. `docutils` stays in production because `/admin/docs/` is enabled. The scaffolder's venv
   installs `requirements-dev.txt`.

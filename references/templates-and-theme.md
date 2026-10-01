@@ -4,12 +4,12 @@ The default site lives in `assets/default-site/` (reachable from an installed sk
 
 | Asset | Copy to | Purpose |
 |---|---|---|
-| `templates/base.html` | `templates/base.html` | Shell: Bootstrap navbar with hamburger (`navbar-expand-lg`, collapse), footer, skip link, `{% render_block %}` for css/js |
+| `templates/base.html` | `templates/base.html` | Shell: Bootstrap navbar with hamburger (`navbar-expand-lg`, collapse) and the light/dark toggle button (`data-theme-toggle`, outside the collapse so it shows on mobile), footer, skip link, `{% render_block %}` for css/js |
 | `templates/landing.html` | `templates/landing.html` | Hero, three feature columns, content, call-to-action band (slots `hero`, `feature_1..3`, `content`, `cta`) |
 | `templates/standard.html` | `templates/standard.html` | `content` (`col-lg-8`) plus a right `sidebar` (`col-lg-4`) that stacks on small screens |
 | `templates/menu/menu.html`, `menu/footer_menu.html` | `templates/menu/` | Header menu: dropdown for level 0 parents, deeper levels flattened and indented; footer list |
 | `static/css/site.css` | `static/css/site.css` | `--site-*` custom properties bridged onto Bootstrap's `--bs-*`, spacing for text content, focus, print |
-| `static/js/theme.js` | `static/js/theme.js` | Sets `data-bs-theme` from `prefers-color-scheme` (light/dark), loaded in `<head>` to avoid a flash |
+| `static/js/theme.js` | `static/js/theme.js` | Sets `data-bs-theme`: a choice stored by the header toggle (`localStorage` key `theme`, access guarded) wins, else `prefers-color-scheme` including live OS changes; loaded in `<head>` to avoid a flash; also reveals the toggle button and keeps `aria-pressed` in sync |
 | `static/vendor/bootstrap/` | same | Bootstrap 5.3.3 CSS + bundle JS, vendored (no CDN, works on a LAN) with its MIT `LICENSE` |
 
 Also required (settings in `assets/default-site/settings_fragment.py`, explained in `project-setup.md`, "Static files and site name"): `STATICFILES_DIRS`, `STATIC_ROOT`, a `SITE_NAME` setting and the context processor that exposes it as `site_name`. Nothing defines `site_name` for you; without it the title, brand and footer render empty.
@@ -50,7 +50,9 @@ Ticked items were actually run against a scratch project built from `assets/defa
 - [x] `manage.py test starter`: 20 tests pass
 - [ ] Logged-in CMS toolbar in a browser (only covered by test client markup checks)
 - [ ] `/admin/docs/` in a browser (only the test client checks it returns 200)
-- [ ] Numeric contrast check (no contrast tool was run)
+- [x] Theme toggle (2026-10-01, Playwright + node): `tests/test_theme_js.py` runs `theme.js` under node with a DOM stub; in Chromium the button flips `data-bs-theme`, persists across reload, follows live OS changes when nothing is stored, works with Enter, with the mobile menu open and at 375px (no horizontal overflow); button icon and border contrast 7.0 to 14.7:1 in both schemes (measured); no-JS fallback follows the OS and hides the button
+- [x] Numeric contrast: `tests/test_default_site_theme.py` checks the muted/active tokens in both schemes; no whole-page contrast sweep was run
+- [ ] Whole-page numeric contrast sweep (not run)
 - [ ] Dropdown opening by mouse/keyboard in a real browser (markup only; the hamburger was clicked)
 
 Untick or add items rather than assuming when you change the theme.
