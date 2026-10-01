@@ -1,20 +1,16 @@
 # Djangocms Agent
 
-## OpenCode Plugin
+## OpenCode
 
-This package registers the `skills/` directory as an OpenCode skills path.
-OpenCode will automatically load skills from `.opencode/skills/djangocms-agent/`.
+OpenCode reads skills from `.claude/skills/` (the installer puts them there once) and
+agents from `.opencode/agent/` (the installer generates them).
 
 ## Installation
 
-Run this from your project root:
+Use the installer from the repo root (see the main README):
 
 ```bash
-# Copy skills to your opencode skills directory
-cp -r skills ~/.config/opencode/skills/
-
-# Or clone as a submodule
-git submodule add https://github.com/growlf/djangocms-agent .agents/skills/djangocms-agent
+python3 bin/install.py --project /path/to/your/project
 ```
 
 ## After Installation

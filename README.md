@@ -54,28 +54,43 @@ If you cannot view images, rely on the printed text and exit code; do not claim 
 
 ## Installation
 
-### Option 1: Skills CLI (recommended)
+### Recommended: the installer
 
-```bash
-# Install all skills
-npx skills add growlf/djangocms-agent --global
-
-# Or install into a specific project
-npx skills add growlf/djangocms-agent
-```
-
-### Option 2: Clone and Copy
+One command installs the skills and subagents for Claude Code, OpenCode and Crush.
+Skills go in `.claude/skills/` (all three tools read it, so each skill is installed once);
+Claude Code agents go in `.claude/agents/`; OpenCode agents are generated into `.opencode/agent/`.
+Crush has no agent files and just uses the skills.
 
 ```bash
 git clone https://github.com/growlf/djangocms-agent.git
-cp -r djangocms-agent/skills ~/.agents/
-cp -r djangocms-agent/plugins/djangocms-agent ~/.agents/
+cd djangocms-agent
+
+python3 bin/install.py --project /path/to/your/project        # symlink skills (default; follows `git pull`)
+python3 bin/install.py --project /path/to/your/project --copy # copy instead of symlink
+python3 bin/install.py --global                               # install for your user (~/.claude, ~/.config/opencode)
+python3 bin/install.py --dry-run --project /path/to/project   # show what would happen, change nothing
+
+python3 bin/install.py doctor --project /path/to/your/project # is the install present and current?
+python3 bin/install.py --uninstall --project /path/to/your/project
 ```
 
-### Option 3: Git Submodule
+Options: `--hosts claude,opencode,crush` (default `claude,opencode`).
+The installer only touches files it created (tracked in `.djangocms-agent.lock`), refuses to
+overwrite anything else, and changes nothing if it finds a conflict. Exit codes: 0 ok,
+1 conflict/behind/missing files, 2 error or no lockfile.
+Tests: `python3 -m unittest tests/test_install.py`.
+
+### From OpsKit
+
+This repo is an OpsKit member (`.opskit/pack.yml`). From an OpsKit checkout, mount it with
+`opskit member sync-mount`.
+
+### Manual (no installer)
+
+Copy the two skill folders into `.claude/skills/` (project) or `~/.claude/skills/` (global):
 
 ```bash
-git submodule add https://github.com/growlf/djangocms-agent .agents/skills/djangocms-agent
+cp -r skills/djangocms-agent skills/djangocms-reviewer /path/to/your/project/.claude/skills/
 ```
 
 ## Included Skills

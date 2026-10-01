@@ -2,10 +2,12 @@
 
 ## OpenCode Plugin
 
-Registers `skills/djangocms-reviewer/SKILL.md` as an OpenCode skill.
+Provides the `djangocms-reviewer` skill and subagent for OpenCode.
 
 ## Installation
 
+Use the installer from the repo root (see the main README):
+
 ```bash
-cp -r skills ~/.config/opencode/skills/
+python3 bin/install.py --project /path/to/your/project
 ```
