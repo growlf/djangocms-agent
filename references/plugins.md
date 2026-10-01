@@ -24,6 +24,8 @@ Built and rendered in a scratch project (the one now shipped as `assets/default-
 | djangocms-form | FAILS | Not on PyPI (the name does not exist) |
 | djangocms-social 0.4a1 | FAILS | Imports `ugettext_lazy`; crashes Django 5.2. Do not use |
 | djangocms-text-ckeditor | DO NOT ENABLE | Only installed because bootstrap5 imports its HTMLField. Keep it OUT of `INSTALLED_APPS`; djangocms-text is its successor |
+| djangocms-markdown 1.0.1 | check + migrate only | `bin/package-trial.py`, 2026-10-01 (cms 5.1.3, Django 5.2.17): installs (pulls in `markdown` 3.11), imports, `check` and `migrate` pass, no migration drift, registers `MDTextPlugin`. Not rendered or verified in the CMS |
+| djangocms-blog 2.0.10 | FAILS | `bin/package-trial.py`, 2026-10-01: pip cannot install it next to django-cms 5.1.3 (requires `django-cms<4.0`, classifiers stop at Django 4.2, needs legacy text-ckeditor). No CMS 5 compatible alternative has been trialed yet |
 | djangocms-snippet | UNSUITABLE | Versioned grouper model; does not fit the versioning workflow |
 
 Without the Grid plugin there is no row/column plugin. Use the Bootstrap grid classes in the page templates (as the default site does) or the Raw HTML block (`starter.HtmlBlock`, trusted editors only).
@@ -39,3 +41,5 @@ Transitive pins the site needed: djangocms-attributes-field, django-filer, djang
 Installing the packages above also installs the legacy `djangocms-text-ckeditor`. Never add `djangocms_text_ckeditor` to `INSTALLED_APPS` next to `djangocms_text`.
 
 Previously proven on cms 5.1.3 by TheNetYeti's own sites: djangocms-text, djangocms-link, djangocms-versioning, django-filer. Not re-verified here: any plugin not listed in the table.
+
+Looking for a package that is not in this table? See `references/django-packages.md` (search Django Packages, evaluation checklist, trial, and how to record a new row here).

@@ -532,7 +532,7 @@ def render(result: dict, with_pypi: bool) -> str:
         out.append("No packages found." + (" Try broader words, or a grid (see: grids <text>)." if kind == "search" else ""))
     else:
         head = (f"{'package':<27} {'watch':>6} {'commit':<10} {'release':<10} {'version':<9} "
-                f"{'Django':<7} {'license':<12} {'repo':<4} verdict")
+                f"{'Django':<7} {'license':<12} {'repo':<7} verdict")
         out.append(head)
         out.append("-" * len(head))
         for r in pk:
@@ -541,7 +541,7 @@ def render(result: dict, with_pypi: bool) -> str:
             out.append(f"{_trunc(r['slug'], 27):<27} {r['repo_watchers']:>6} {_trunc(r['last_commit'], 10):<10} "
                        f"{_trunc(p.get('released') if p else None, 10):<10} {_trunc(p.get('version'), 9):<9} "
                        f"{_trunc(dj[-1] if dj else None, 7):<7} {_trunc(p.get('license'), 12):<12} "
-                       f"{_trunc(r['repo_match'], 4):<4} {r['compat']['verdict']}")
+                       f"{_trunc(r['repo_match'], 7):<7} {r['compat']['verdict']}")
         out.append("")
         for r in pk:
             p = r.get("pypi") or {}
