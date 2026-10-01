@@ -57,11 +57,11 @@ This single skill covers pages, placeholders, templates, plugins, admin, middlew
 
 ## CMS Gotchas (from TheNetYeti)
 
-- **`create_page` requires `language="en-us"`** — no `published=` kwarg
+- **`create_page` requires a language code that is in `LANGUAGES`** (e.g. `"en"`) — no `published=` kwarg. With djangocms-versioning it creates a **draft**; publish with `page.get_admin_content("en").versions.first().publish(user)`. Pass `in_navigation=True` for pages that belong in menus. Set the home page with `with transaction.atomic(): page.set_as_homepage()`.
 - **CMS page lookup** — slugs live in `PageUrl`: `PageUrl.objects.get(slug=slug).page`
 - **Re-pointing page templates** — use `PageContent.objects.filter(page=page, language="en-us").first().template`
 - **`{% render_block %}`** — cannot live inside a `{% block %}` (swallows following `{% endblock %}`)
-- **`{% show_menu %}`** — requires `{% load menu_tags %}` and `cms.context_processors.cms_settings` context processor; `menus.context_processors.menus` does not exist
+- **`{% show_menu %}`** — needs `{% load menu_tags %}` and pages created with `in_navigation=True` (`create_page` defaults to `False`, so the menu renders empty). `cms.context_processors.cms_settings` is recommended but not required (`show_menu` builds its own renderer without it); `menus.context_processors.menus` does not exist
 - **`{% %}` inside `{# #}` comments** — tokenizes/parse-fails; keep DTL comments free of `{% %}`
 
 ## CMS 5.x Notes

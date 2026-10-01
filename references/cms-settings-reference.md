@@ -59,7 +59,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "sekizai.context_processors.sekizai",  # Required
-                "cms.context_processors.cms_settings",  # Required for {% show_menu %}
+                "cms.context_processors.cms_settings",  # Recommended (provides cms_menu_renderer); show_menu also works without it
             ],
         },
     },

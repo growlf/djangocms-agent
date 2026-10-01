@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Fixed (found by building a scratch django-cms 5.1.3 project from the docs)
+- `show_menu` does NOT require `cms.context_processors.cms_settings` (it falls back to its own renderer); it needs pages with `in_navigation=True`. The earlier claim was wrong.
+- The documented `INSTALLED_APPS` omitted `django.contrib.sites` (+ `SITE_ID`): startup crashed.
+- `docutils` is not installed with Django; admindocs needs `pip install docutils`.
+- Plugin list: `djangocms-form` does not exist on PyPI; `djangocms-social` 0.4a1 crashes on Django 5.2. Removed. Alias/picture/video/file/style/bootstrap5/googlemap pass check + migrate.
+- `create_page` creates a draft under djangocms-versioning; publishing, `in_navigation` and homepage recipes documented.
+- Both menu variants and the page template now verified to render.
+
 ### Added
 - `bin/install.py`: idempotent installer for Claude Code, OpenCode and Crush (`--project`/`--global`, `--link`/`--copy`, `--dry-run`, `--uninstall`, `doctor`), lockfile-tracked so it only ever touches its own files; 20 tests.
 - `agents/djangocms-agent.md` and `agents/djangocms-reviewer.md`: canonical subagent definitions (OpenCode format is generated from them).
@@ -22,7 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Removed duplicate sections from djangocms-agent SKILL.md (deduplicated ~160 lines)
 - Removed invalid settings: `CMS_TOOLBAR_ANONYMOUS_EDIT`, `CMS_TOOLBAR_REQUIRE_SUPERUSER`, `CMS_TOOLBAR_URL__EDIT_ON`, `CMS_TOOLBAR_URL__EDITMODE`
 - Removed non-existent setting `CMS_DEFAULT_INTENT` from all docs
-- Corrected `{% show_menu %}` guidance to use `cms.context_processors.cms_settings` (not `menus.context_processors.menus`)
+- Corrected `{% show_menu %}` guidance (`menus.context_processors.menus` does not exist; see Unreleased for the later correction that `cms_settings` is recommended but not required)
 - Aligned references and adapters with django-cms 5.x (replaced all 4.x references)
 - Replaced `djangocms-text-ckeditor` with `djangocms-text` (correct package for CMS 5.x)
 - Removed references to 8 sub-skills that do not exist
@@ -31,5 +39,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Gated debug toolbar configuration on `DEBUG` flag; removed unsafe "Safe for production" claim
 
 ### Verification status
-- Proven: nothing yet by render test
-- Unverified: menu template using `request.current_page.get_root_nodes`; optional plugins (video, social, googlemap, form, bootstrap5); how to publish a page under djangocms-versioning.
+- Proven (scratch project, cms 5.1.3 / Django 5.2.17, 2026-09-30): documented settings boot with `sites` added; `show_menu` and the hand-rolled menu render; versioning publish recipe; installer output is discovered by OpenCode (both skills once, from `.claude/skills`; `djangocms-agent` loads as a subagent).
+- Not proven: Crush discovery (not run on purpose), plugin rendering (only check/migrate), mobile layout, `CMS_TOOLBAR_*` behaviour.
