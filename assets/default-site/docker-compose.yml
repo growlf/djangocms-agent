@@ -1,0 +1,62 @@
+name: __PROJECT_NAME__
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-__PROJECT_NAME__}
+      POSTGRES_USER: ${DB_USER:-__PROJECT_NAME__}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?run bin/docker-env.sh to create .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # No ports published: only reachable from the app over the compose network.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DJANGO_DEBUG: "0"
+      DJANGO_DEBUG_TOOLBAR: "0"
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?run bin/docker-env.sh to create .env}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      # Must list the origin(s) users browse to (scheme + host + port), or admin login fails with CSRF 403.
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:${APP_PORT:-8889},http://127.0.0.1:${APP_PORT:-8889}}
+      DJANGO_SERVE_MEDIA: ${DJANGO_SERVE_MEDIA:-1}
+      DJANGO_BEHIND_PROXY: ${DJANGO_BEHIND_PROXY:-0}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      DB_ENGINE: postgres
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-__PROJECT_NAME__}
+      DB_USER: ${DB_USER:-__PROJECT_NAME__}
+      DB_PASSWORD: ${DB_PASSWORD:?run bin/docker-env.sh to create .env}
+      SEED_ON_START: ${SEED_ON_START:-0}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+    ports:
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-8889}:8000"
+    volumes:
+      - media:/app/media
+      - static:/app/staticfiles
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+# Named volumes are prefixed with the compose project name (`name:` above, or -p), so two copies of
+# this stack never share data.
+volumes:
+  pgdata:
+  media:
+  static:

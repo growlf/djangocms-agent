@@ -15,7 +15,7 @@ Every content, design and copy decision should serve that purpose. When in doubt
 ## Stack
 
 DjangoCMS 5.x on Django 5.2 with Bootstrap 5.3 (vendored under `static/vendor/bootstrap`, no CDN),
-djangocms-versioning (draft/publish), SQLite for development. Python package: `{{PROJECT_PACKAGE}}`.
+djangocms-versioning (draft/publish), {{DB_STACK}}. Python package: `{{PROJECT_PACKAGE}}`.
 Scaffolded by the `djangocms-agent` skill (`bin/new-site.py`); load that skill for CMS gotchas.
 
 ## Setup commands
@@ -29,13 +29,13 @@ Scaffolded by the `djangocms-agent` skill (`bin/new-site.py`); load that skill f
 `DJANGO_DEBUG=1` is for local development only. Without it, `DJANGO_SECRET_KEY` and
 `DJANGO_ALLOWED_HOSTS` must be set (see `.env.example`).
 
-## Layout
+{{DOCKER_AGENTS}}## Layout
 
 - `{{PROJECT_PACKAGE}}/` - settings, urls, wsgi/asgi, context processor (`site_name`)
-- `starter/` - app with the `HtmlBlock` plugin, seed commands (`seed_pages`, `seed_site`) and tests
+- `starter/` - app with the `HtmlBlock` plugin, seed commands (`seed`, `seed_pages`, `seed_site`) and tests
 - `templates/` - `base.html`, `landing.html`, `standard.html`, menu templates
 - `static/` - `css/site.css`, `js/theme.js`, vendored Bootstrap
-- `scripts/visual_check.py` - Playwright screenshot checker; `bin/verify.sh` - the full check
+{{DOCKER_LAYOUT}}- `scripts/visual_check.py` - Playwright screenshot checker; `bin/verify.sh` - the full check
 
 ## Verification (mandatory)
 

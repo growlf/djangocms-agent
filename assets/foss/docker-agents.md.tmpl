@@ -1,0 +1,9 @@
+## Docker + PostgreSQL
+
+`bin/docker-up.sh` builds and starts `db` (postgres:16-alpine, no published port) and `app` (gunicorn +
+WhiteNoise) as compose project `{{PROJECT_PACKAGE}}` on http://127.0.0.1:8889/ (`APP_PORT` changes the port;
+then also check `DJANGO_CSRF_TRUSTED_ORIGINS`). Secrets live in a gitignored `.env` made by
+`bin/docker-env.sh`; never print or commit it. `bin/docker-down.sh` keeps volumes unless `--volumes`.
+Health endpoint: `/health/`. Seed in one step with `manage.py seed`. Local SQLite workflow above is
+unchanged. Never run `docker volume prune` or a bare `down -v`. Details: README.
+

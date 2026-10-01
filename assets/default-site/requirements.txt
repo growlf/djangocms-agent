@@ -17,3 +17,6 @@ easy-thumbnails==2.10.1
 pillow==12.3.0
 django-debug-toolbar==8.0.0
 docutils==0.23
+psycopg[binary]==3.3.6
+gunicorn==26.2.0
+whitenoise==6.12.0

@@ -1,0 +1,32 @@
+## Docker + PostgreSQL
+
+The container stack runs PostgreSQL 16 and the site (gunicorn, WhiteNoise for static files, DEBUG and the
+debug toolbar off) as compose project `{{PROJECT_PACKAGE}}`.
+
+    bin/docker-up.sh               # creates .env if absent, builds, starts, waits until healthy, prints the URL
+    bin/docker-down.sh             # stops; keeps data volumes
+    bin/docker-down.sh --volumes   # stops AND deletes this project's database/media/static volumes
+
+- **Ports:** the app is published on `127.0.0.1:${APP_PORT:-8889}` (`APP_PORT=8891 bin/docker-up.sh`, or set it
+  in `.env`; override the address with `APP_BIND`). PostgreSQL publishes no host port.
+- **CSRF origin:** admin login fails with a CSRF 403 unless the origin you browse to is trusted. The default
+  follows `APP_PORT` for `localhost`/`127.0.0.1`; for any other host name or a TLS proxy set
+  `DJANGO_CSRF_TRUSTED_ORIGINS` (with scheme and port) and `DJANGO_ALLOWED_HOSTS` in `.env`.
+- **Secrets:** `bin/docker-env.sh` writes `.env` (mode 600) with a random `DB_PASSWORD` and
+  `DJANGO_SECRET_KEY` only if `.env` does not exist; it never overwrites or prints them. `.env` is gitignored.
+  See `.env.example` for the other knobs.
+- **First run:** `SEED_ON_START=1` in `.env` (runs `manage.py seed`, idempotent), or
+  `docker compose exec app python manage.py seed`. Then
+  `docker compose exec app python manage.py createsuperuser`.
+- **Health:** `GET /health/` returns `{"status": "ok"}` after a cheap `SELECT 1` (503 if the database is
+  down); the compose healthcheck uses it.
+- **Media:** uploads live in the `media` volume. With DEBUG off Django does not serve them unless
+  `DJANGO_SERVE_MEDIA=1` (the compose default). Behind a real proxy serve `/media/` there and set it to 0.
+- **Logs:** `docker compose logs -f app`.
+- **Backup:** `docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > backup.sql`
+  (media is in the `media` volume). **Restore:** pipe it into `psql` in an empty database.
+- **Reset:** `bin/docker-down.sh --volumes`, then `bin/docker-up.sh`. Never use `docker volume prune`.
+- **Local SQLite is unchanged:** without `DB_ENGINE=postgres` the settings use `db.sqlite3`, so the Quick
+  start, `runserver` and `bin/verify.sh` work as before. Opt out of all Docker files at scaffold time with
+  `bin/new-site.py --no-docker`.
+

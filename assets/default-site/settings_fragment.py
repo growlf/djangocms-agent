@@ -33,6 +33,19 @@ if DEBUG and not ALLOWED_HOSTS:
     ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 
+def env_flag(name, default=''):
+    return os.environ.get(name, default).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+# Comma separated origins WITH scheme (https://example.org). Needed for POST/login when the browser's
+# origin differs from the host Django sees: another APP_PORT, a host name, or a TLS proxy.
+CSRF_TRUSTED_ORIGINS = [
+    o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()
+]
+if env_flag('DJANGO_BEHIND_PROXY'):  # only behind a proxy that sets (and strips client-sent) X-Forwarded-Proto
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+
 # --- Applications -----------------------------------------------------------------------------
 
 INSTALLED_APPS = [
@@ -78,10 +91,12 @@ INSTALLED_APPS = [
     'djangocms_versioning',  # draft/publish workflow; keep after djangocms_alias
 ]
 
-# ApphookReloadMiddleware must stay FIRST. The debug toolbar goes at index 1 (DEBUG only).
+# ApphookReloadMiddleware must stay FIRST. WhiteNoise follows SecurityMiddleware. The debug toolbar
+# is inserted at index 1 (DEBUG only), so the order is: apphook reload, toolbar, security, whitenoise, ...
 MIDDLEWARE = [
     'cms.middleware.utils.ApphookReloadMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # serves STATIC_ROOT; must directly follow SecurityMiddleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',  # after sessions, before common
     'django.middleware.common.CommonMiddleware',
@@ -137,12 +152,27 @@ TEMPLATES = [
 
 # --- Database, auth, i18n ---------------------------------------------------------------------
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# DB_ENGINE=postgres (the container default, see docker-compose.yml) uses PostgreSQL through
+# DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD. Anything else, or unset, keeps local SQLite.
+if os.environ.get('DB_ENGINE', '').strip().lower() in ('postgres', 'postgresql', 'pgsql'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('DB_NAME', '__PROJECT_NAME__'),
+            'USER': os.environ.get('DB_USER', '__PROJECT_NAME__'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('DB_HOST', 'db'),
+            'PORT': os.environ.get('DB_PORT', '5432'),
+            'CONN_MAX_AGE': int(os.environ.get('DB_CONN_MAX_AGE', '60')),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -168,8 +198,21 @@ SITE_ID = 1
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # collectstatic target (gitignored)
+# WhiteNoise compresses collected files. Deliberately the non-manifest storage (no hashed names), so a
+# template that references a missing file cannot break collectstatic or page rendering.
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+}
+try:  # WhiteNoise warns "No directory at: staticfiles/" when STATIC_ROOT does not exist yet
+    STATIC_ROOT.mkdir(exist_ok=True)
+except OSError:
+    pass
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+# With DEBUG off Django does not serve uploads. DJANGO_SERVE_MEDIA=1 (set by docker-compose) makes urls.py
+# serve MEDIA_URL from Django, fine for a small site; behind nginx/caddy serve /media/ there and leave it 0.
+SERVE_MEDIA = env_flag('DJANGO_SERVE_MEDIA')
 
 SITE_NAME = '__SITE_NAME__'  # shown through the context processor as {{ site_name }}
 

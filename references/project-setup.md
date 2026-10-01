@@ -50,6 +50,8 @@ MIDDLEWARE = [
 ```
 The default site's `MIDDLEWARE` (`assets/default-site/settings_fragment.py`) includes `LocaleMiddleware` in the position shown above (after sessions, before common) and lists the cms middleware before `XFrameOptionsMiddleware`; both cms/clickjacking orders work. Verified 2026-10-01 on cms 5.1.3 / Django 5.2.17: `manage.py check` clean, four published pages return 200, logged-in users get the toolbar markup, responses carry `X-Frame-Options: SAMEORIGIN`. An earlier scratch project that listed only sessions, common, csrf, auth, messages and the four `cms.middleware.*` entries also booted and rendered, which is why this gap went unnoticed: it had no `SecurityMiddleware`, no clickjacking header, no locale handling and no apphook reload. Do not omit the stock Django entries.
 
+The default site additionally puts `whitenoise.middleware.WhiteNoiseMiddleware` **directly after `SecurityMiddleware`** (WhiteNoise's documented position) and keeps `ApphookReloadMiddleware` first; the DEBUG-only debug toolbar is inserted at index 1, so with DEBUG on the order is apphook reload, toolbar, security, whitenoise, sessions, ...
+
 ### X-Frame-Options (for CMS toolbar)
 ```python
 X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allows CMS toolbar iframe to load
@@ -156,3 +158,13 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 ```
 Accepted trade-offs, not defects: `security.W019` (X_FRAME_OPTIONS is `SAMEORIGIN`, not `DENY`, because the CMS toolbar frames same-origin pages), `security.W005` (HSTS subdomains) and `security.W021` (HSTS preload) are per-site decisions. Also use a real database (PostgreSQL) rather than SQLite, and gate the debug toolbar on `DEBUG` (see above).
+
+### Docker / container settings (default site)
+All of these are in `assets/default-site/settings_fragment.py` and `urls_fragment.py` and behave identically with or without the Docker files. Verified 2026-10-01 end to end (PostgreSQL 16, gunicorn, DEBUG off).
+
+- **Database:** `DB_ENGINE=postgres` (also `postgresql`/`pgsql`) selects `django.db.backends.postgresql` from `DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD` (plus `DB_CONN_MAX_AGE`, default 60); anything else keeps SQLite. Needs `psycopg[binary]` (bundles libpq; no apt packages).
+- **Static:** `STORAGES['staticfiles']` is `whitenoise.storage.CompressedStaticFilesStorage` (non-manifest on purpose: a template referencing a missing file cannot break `collectstatic` or rendering). WhiteNoise warns `No directory at: .../staticfiles/` when `STATIC_ROOT` does not exist at startup; the settings create it (`STATIC_ROOT.mkdir(exist_ok=True)`) and the container entrypoint runs `mkdir -p staticfiles`. `collectstatic` runs at image build and again at container start.
+- **Media with DEBUG off:** Django serves no uploads. `DJANGO_SERVE_MEDIA=1` (compose default) adds a `re_path(r'^media/(?P<path>.*)$', django.views.static.serve)` after the health/admin routes and before the CMS catch-all. Fine for a small site; behind nginx/caddy serve `/media/` there and set it to 0. With DEBUG on the usual `static()` route is used.
+- **Health:** `GET /health/` (before `cms.urls`) runs `SELECT 1`: 200 `{"status": "ok"}` or 503. `never_cache`, GET/HEAD only.
+- **Proxy / CSRF:** `DJANGO_CSRF_TRUSTED_ORIGINS` (comma separated, with scheme and port) feeds `CSRF_TRUSTED_ORIGINS`; `DJANGO_BEHIND_PROXY=1` sets `SECURE_PROXY_SSL_HEADER` and must only be used behind a proxy that overwrites `X-Forwarded-Proto`.
+- **gunicorn:** run it as a non-root user with `--no-control-socket` (the control socket needs a writable home directory and otherwise errors at startup). `--access-logfile -` sends access logs to the container log.

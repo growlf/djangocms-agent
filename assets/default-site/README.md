@@ -20,11 +20,14 @@ It was built and verified in a scratch project (django-cms 5.1.3, Django 5.2.17)
 |---|---|---|
 | `templates/` | `templates/` | `base.html` (shell), `landing.html`, `standard.html`, `menu/menu.html`, `menu/footer_menu.html` |
 | `static/` | `static/` | `css/site.css`, `js/theme.js`, vendored `vendor/bootstrap/` (5.3.3 CSS + bundle JS, MIT `LICENSE` included; no CDN) |
-| `starter/` | `starter/` | app: `HtmlBlock` plugin, `seeding.py` helpers, `seed_pages`, `seed_site`, tests |
+| `starter/` | `starter/` | app: `HtmlBlock` plugin, `seeding.py` helpers, `seed` (= `seed_pages` + `seed_site`), `seed_pages`, `seed_site`, tests |
 | `__PROJECT_NAME__/context_processors.py` | `<project>/context_processors.py` | exposes `SITE_NAME` as `site_name` |
 | `settings_fragment.py` | `<project>/settings.py` | the complete settings module (or merge sections) |
 | `urls_fragment.py` | `<project>/urls.py` | admindocs, admin, debug toolbar (DEBUG and `DJANGO_DEBUG_TOOLBAR`), cms.urls last |
 | `manage.py` | `manage.py` | standard, points at `__PROJECT_NAME__.settings` |
+| `Dockerfile`, `docker-compose.yml`, `docker/entrypoint.sh`, `bin/docker-*.sh` | same paths | Docker + PostgreSQL stack (omitted by `new-site.py --no-docker`) |
+| `dockerignore.template` | `.dockerignore` | build-context excludes (secrets, venv, db, media) |
+| `__PROJECT_NAME__/health.py` | `<project>/health.py` | `/health/` for container healthchecks |
 | `requirements.txt` | `requirements.txt` | pinned, verified set |
 | `env.example.template`, `gitignore.template` | `.env.example`, `.gitignore` | environment variables; ignore rules |
 
@@ -42,6 +45,20 @@ this repo; they are plain Python and compile as-is.
     DJANGO_DEBUG=1 python manage.py seed_site      # landing content, About, Style & Capabilities
     DJANGO_DEBUG=1 DJANGO_SECRET_KEY=dev python manage.py runserver 8005
     DJANGO_DEBUG=1 DJANGO_SECRET_KEY=dev python manage.py test starter
+
+## Docker + PostgreSQL
+
+    bin/docker-up.sh               # creates .env (random secrets), builds, starts, waits healthy, prints the URL
+    APP_PORT=8891 bin/docker-up.sh -p other   # another host port / compose project name
+    bin/docker-down.sh             # stops, keeps volumes; --volumes deletes this project's volumes
+
+Compose project `__PROJECT_NAME__`: `db` (postgres:16-alpine, no host port) and `app` (gunicorn, WhiteNoise,
+DEBUG and the debug toolbar off, non-root) on `127.0.0.1:${APP_PORT:-8889}`. `DB_ENGINE=postgres` selects
+PostgreSQL; unset keeps SQLite so `runserver` and `bin/verify.sh` are unchanged. `SEED_ON_START=1` runs
+`manage.py seed` at start. Admin login needs the browsed origin in `DJANGO_CSRF_TRUSTED_ORIGINS` (the compose
+default follows `APP_PORT` for localhost). `DJANGO_SERVE_MEDIA=1` serves uploads from Django when DEBUG is off.
+The generated README documents backup, restore, reset and proxy use; `references/project-setup.md` in the skill
+explains each setting.
 
 ## Debug toolbar handle
 
