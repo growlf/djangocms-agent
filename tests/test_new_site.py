@@ -230,3 +230,157 @@ def test_no_asset_is_gitignored():
     files = [p.relative_to(repo).as_posix() for p in (repo / "assets").rglob("*") if p.is_file() and "__pycache__" not in p.parts]
     out = subprocess.run(["git", "check-ignore", "--no-index", *files], cwd=repo, capture_output=True, text=True)
     assert out.stdout.strip() == "", f"gitignored asset files: {out.stdout}"
+
+
+# ---- playwright preflight ------------------------------------------------------------------
+
+def cli_no_playwright(tmp_path, *args):
+    """Run the CLI where neither PLAYWRIGHT_PYTHON nor python3 on PATH can import playwright."""
+    empty = tmp_path / "emptybin"
+    empty.mkdir(exist_ok=True)
+    env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull,
+           "PATH": str(empty), "PLAYWRIGHT_PYTHON": str(tmp_path / "no-such-python")}
+    return subprocess.run([sys.executable, str(SCRIPT), *args], capture_output=True, text=True,
+                          stdin=subprocess.DEVNULL, env=env, timeout=120)
+
+
+def test_preflight_missing_playwright_prints_notice_and_continues(tmp_path):
+    proc = cli_no_playwright(tmp_path, "--name", "Pw Site", "--purpose", "p", "--parent-dir", str(tmp_path),
+                             "--no-venv", "--yes")
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "NOTICE: Playwright is not ready" in proc.stdout
+    assert "INCOMPLETE" in proc.stdout
+    assert "PLAYWRIGHT_PYTHON=/tmp/pw-venv/bin/python" in proc.stdout
+    assert "playwright install chromium" in proc.stdout
+    assert (tmp_path / "pw-site" / "bin" / "verify.sh").is_file()
+
+
+def test_require_playwright_is_fatal_and_creates_nothing(tmp_path):
+    proc = cli_no_playwright(tmp_path, "--name", "Pw Site", "--purpose", "p", "--parent-dir", str(tmp_path),
+                             "--no-venv", "--yes", "--require-playwright")
+    assert proc.returncode == 2, proc.stdout + proc.stderr
+    assert "--require-playwright" in proc.stderr and "playwright install chromium" in proc.stderr
+    assert not (tmp_path / "pw-site").exists()
+
+
+def test_preflight_ok_when_playwright_and_chromium_present(tmp_path, monkeypatch):
+    fake = tmp_path / "fakepy"
+    fake.write_text("#!/bin/sh\n"
+                    "case \"$2\" in *executable_path*) echo 1;; esac\nexit 0\n")
+    fake.chmod(0o755)
+    monkeypatch.setenv("PLAYWRIGHT_PYTHON", str(fake))
+    assert ns.playwright_preflight() == (True, [])
+
+
+def test_preflight_reports_missing_chromium(tmp_path, monkeypatch):
+    fake = tmp_path / "fakepy"
+    fake.write_text("#!/bin/sh\ncase \"$2\" in *executable_path*) echo 0;; esac\nexit 0\n")
+    fake.chmod(0o755)
+    monkeypatch.setenv("PLAYWRIGHT_PYTHON", str(fake))
+    monkeypatch.setenv("PATH", str(tmp_path / "nothing"))
+    ok, problems = ns.playwright_preflight()
+    assert not ok and any("chromium is not installed" in p for p in problems)
+
+
+# ---- debug toolbar switch ------------------------------------------------------------------
+
+SITE_SRC = REPO / "assets" / "default-site"
+
+
+def load_settings_and_urls(tmp_path, monkeypatch, debug, toolbar):
+    """Import the settings fragment (plain Python) and evaluate the urls fragment against it, with
+    stubs for django.conf/urls so no database or installed CMS is needed."""
+    import types
+    for k in ("DJANGO_DEBUG", "DJANGO_DEBUG_TOOLBAR", "DJANGO_SECRET_KEY"):
+        monkeypatch.delenv(k, raising=False)
+    if debug is not None:
+        monkeypatch.setenv("DJANGO_DEBUG", debug)
+    if toolbar is not None:
+        monkeypatch.setenv("DJANGO_DEBUG_TOOLBAR", toolbar)
+    monkeypatch.setenv("DJANGO_SECRET_KEY", "x")
+    monkeypatch.syspath_prepend(str(SITE_SRC))
+    sys.modules.pop("starter", None)
+    sys.modules.pop("starter.constants", None)
+    code = (SITE_SRC / "settings_fragment.py").read_text(encoding="utf-8")
+    # Only the settings import of ImproperlyConfigured needs Django; stub it so the test stays offline.
+    exc = types.ModuleType("django.core.exceptions")
+    exc.ImproperlyConfigured = type("ImproperlyConfigured", (Exception,), {})
+    for name, m in (("django", types.ModuleType("django")), ("django.core", types.ModuleType("django.core")),
+                    ("django.core.exceptions", exc)):
+        monkeypatch.setitem(sys.modules, name, m)
+    mod = types.ModuleType("fake_settings")
+    mod.__file__ = str(SITE_SRC / "settings_fragment.py")
+    exec(compile(code, mod.__file__, "exec"), mod.__dict__)
+
+    urls_code = (SITE_SRC / "urls_fragment.py").read_text(encoding="utf-8")
+    stubs = {
+        "django.conf": types.SimpleNamespace(settings=mod),
+        "django.conf.urls.static": types.SimpleNamespace(static=lambda *a, **k: []),
+        "django.contrib": types.SimpleNamespace(admin=types.SimpleNamespace(site=types.SimpleNamespace(urls=None))),
+        "django.urls": types.SimpleNamespace(include=lambda x: ("include", x), path=lambda r, v: (r, v)),
+    }
+    mod.MEDIA_URL, mod.MEDIA_ROOT = "/media/", "m"
+    ns_ = {}
+    prelude = "\n".join(l for l in urls_code.splitlines() if not l.startswith(("from django", "import django")))
+    ns_.update(settings=mod, static=stubs["django.conf.urls.static"].static, admin=stubs["django.contrib"].admin,
+               include=stubs["django.urls"].include, path=stubs["django.urls"].path)
+    exec(compile(prelude, "urls_fragment", "exec"), ns_)
+    mod.URLPATTERNS = ns_["urlpatterns"]
+    return mod
+
+
+def toolbar_state(mod):
+    app = "debug_toolbar" in mod.INSTALLED_APPS
+    mw = "debug_toolbar.middleware.DebugToolbarMiddleware" in mod.MIDDLEWARE
+    url = any(r == "__debug__/" for r, _ in mod.URLPATTERNS)
+    return app, mw, url
+
+
+@pytest.mark.parametrize("debug,toolbar,expected", [
+    ("1", None, True),
+    ("1", "1", True),
+    ("1", "anything", True),
+    ("1", "0", False),
+    ("1", "false", False),
+    ("1", "No", False),
+    ("1", "OFF", False),
+    (None, None, False),
+    (None, "1", False),
+])
+def test_debug_toolbar_switch_is_consistent(tmp_path, monkeypatch, debug, toolbar, expected):
+    mod = load_settings_and_urls(tmp_path, monkeypatch, debug, toolbar)
+    assert toolbar_state(mod) == (expected, expected, expected)
+    if expected:
+        assert mod.MIDDLEWARE[0] == "cms.middleware.utils.ApphookReloadMiddleware"
+        assert mod.MIDDLEWARE[1] == "debug_toolbar.middleware.DebugToolbarMiddleware"
+        assert mod.INTERNAL_IPS
+    else:
+        assert not hasattr(mod, "INTERNAL_IPS")
+
+
+# ---- verify.sh content ---------------------------------------------------------------------
+
+def test_verify_sh_disables_toolbar_and_prints_coverage(tmp_path):
+    root = scaffold(tmp_path)
+    text = (root / "bin" / "verify.sh").read_text()
+    assert "DJANGO_DEBUG_TOOLBAR=0" in text and "runserver" in text
+    run_line = next(l for l in text.splitlines() if "runserver" in l and "$PORT" in l)
+    assert "DJANGO_DEBUG_TOOLBAR=0" in run_line
+    for step in ("1/5 manage.py check", "2/5 makemigrations", "3/5 tests", "4/5 seed idempotency",
+                 "5/5 visual check"):
+        assert step in text
+    assert "horizontal overflow" in text and "NOT checked" in text
+    assert "/tmp/pw-venv" in text
+    subprocess.run(["bash", "-n", str(root / "bin" / "verify.sh")], check=True)
+
+
+def test_generated_readme_documents_treebeard_and_debug_toolbar(tmp_path):
+    readme = (scaffold(tmp_path) / "README.md").read_text()
+    assert "treebeard.E001" in readme and "harmless" in readme
+    assert "DJANGO_DEBUG_TOOLBAR=0" in readme
+    assert "debug-toolbar handle" in readme
+
+
+def test_overflow_claim_matches_script():
+    src = (REPO / "scripts" / "visual_check.py").read_text()
+    assert "scrollWidth" in src and "clientWidth" in src

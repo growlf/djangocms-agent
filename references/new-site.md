@@ -9,13 +9,36 @@ or from memory.
    guess or invent either; the script exits 2 if they are missing and stdin is not a terminal. Optional
    questions: display name (`--site-name`), license (default MIT), author for the copyright line, where
    the folder goes (`--parent-dir`).
-2. **Run the scaffolder** (below). Show the user the dry run first if the location is unclear.
-3. **Run the generated `bin/verify.sh`** and **look at the screenshots** it writes to `verify-shots/`
+2. **Check Playwright before scaffolding.** `verify.sh` can only do its visual step with it, and finding
+   out afterwards wastes a run. `bin/new-site.py` runs this preflight at startup (before creating
+   anything): it checks that `playwright` is importable with `PLAYWRIGHT_PYTHON` (else `python3`) and that
+   chromium is installed, and otherwise prints a non-fatal NOTICE with the setup. Do it once in a scratch
+   venv, never system Python:
+
+       python3 -m venv /tmp/pw-venv && /tmp/pw-venv/bin/pip install playwright && /tmp/pw-venv/bin/playwright install chromium
+       export PLAYWRIGHT_PYTHON=/tmp/pw-venv/bin/python
+
+   Pass `--require-playwright` to make a missing setup fatal (exit 2, nothing created).
+3. **Run the scaffolder** (below). Show the user the dry run first if the location is unclear.
+4. **Run the generated `bin/verify.sh`** and **look at the screenshots** it writes to `verify-shots/`
    (desktop and mobile for `/`, `/about/`, `/style-and-capabilities/`). Open the PNGs with your image
    viewer; if you cannot view images, say so and rely on the printed `RESULT:` lines only.
-4. **Report honestly**: what ran and passed, what did not run (for example Playwright missing gives
-   `VERIFY RESULT: INCOMPLETE`, which is not a pass), the URL and port, and the admin password (shown
-   once by the scaffolder; pass it on to the human, do not store it). Only then tell the user to look.
+   It prints, per step, what it covers (see "bin/verify.sh" below); relay what the visual step does
+   not check.
+5. **Report honestly**: what ran and passed, what did not run (for example Playwright missing gives
+   `VERIFY RESULT: INCOMPLETE`, which is not a pass), the URL and port, and the admin login. Only then tell
+   the user to look.
+
+### Which URL and credentials to report
+
+- Pick the first free port >= 8000 (check with `ss -ltn`; the scaffolder prints a suggestion that is only
+  a guess), print the exact run command and report that URL:
+  `DJANGO_DEBUG=1 DJANGO_SECRET_KEY=dev venv/bin/python manage.py runserver <port>` then
+  `http://localhost:<port>/` (admin at `/admin/`).
+- Report the `Admin login:  admin / <password>` line exactly as the scaffolder printed it. It is shown
+  once, stored nowhere; never write the password to a file (a reset is `manage.py changepassword admin`).
+- Link-mode installs: `bin/`, `assets/`, `references/` and `scripts/` under the installed skill directory
+  are symlinks into the repo clone, so the paths resolve and `readlink -f` shows the real source.
 
 ## Running it
 
@@ -41,11 +64,12 @@ python3 bin/new-site.py --name "Acme Garden Club" \
 | `--no-venv` / `--skip-install` | Only write files and `git init`: no venv, pip, migrate, seed |
 | `--no-opskit` | Do not write `.opskit/pack.yml` |
 | `--dry-run` | Print the file plan, touch nothing |
+| `--require-playwright` | Exit 2 before creating anything when Playwright or chromium is not ready (default: print a notice and continue) |
 | `--yes` | Skip the confirmation asked after interactive prompts |
 
 Exit codes: **0** ok, **1** a build step failed (partial project left in place, step named), **2** usage
 or validation error (missing name/purpose non-interactively, bad name, unsupported license, target exists
-and is not empty). It never overwrites a file and refuses a non-empty target.
+and is not empty, or `--require-playwright` with Playwright not ready). It never overwrites a file and refuses a non-empty target.
 
 ## What it produces
 
@@ -71,7 +95,15 @@ and is not empty). It never overwrites a file and refuses a non-empty target.
 installed `djangocms_bootstrap5.contrib.*` drift is upstream and excluded); the tests; seed idempotency
 (page/content counts unchanged after re-seeding); then Playwright `visual_check.py` on key URLs, desktop
 and mobile, against a temporary dev server (first free port from 8010, or `VERIFY_PORT`; always stopped
-on exit). `VERIFY_ADMIN_PASSWORD` additionally checks `/admin/` logged in. `PLAYWRIGHT_PYTHON` points at
+on exit) started with `DJANGO_DEBUG_TOOLBAR=0`. Each step prints what it covers. The visual step asserts:
+HTTP status below 400, no console errors, no failed same-origin requests, not a 404 or Django error page,
+non-empty body text, the site name present, and no horizontal overflow (`scrollWidth > clientWidth`). It does
+not judge layout, colour or contrast, images that return 200 but look wrong, JavaScript behaviour, or the
+logged-in CMS toolbar (only `/admin/` is loaded, when `VERIFY_ADMIN_PASSWORD` is set): look at the PNGs.
+
+The green tab on the right edge with `DJANGO_DEBUG=1` is the django-debug-toolbar handle, not the CMS toolbar;
+it exists only when DEBUG is on and `DJANGO_DEBUG_TOOLBAR=0` removes it (app, middleware and url together).
+The generated README documents the `treebeard.E001` warning (upstream, harmless) once. `VERIFY_ADMIN_PASSWORD` additionally checks `/admin/` logged in. `PLAYWRIGHT_PYTHON` points at
 a Python that has Playwright when the project venv does not. Final line: `VERIFY RESULT: PASS`
 (exit 0), `FAIL` (1), or `INCOMPLETE` (3, visual step skipped).
 

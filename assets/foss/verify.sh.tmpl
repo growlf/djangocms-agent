@@ -3,7 +3,7 @@
 # screenshots in verify-shots/.
 #
 # Steps: manage.py check | makemigrations --check (own apps) | tests | seed idempotency |
-#        visual_check.py on key URLs, desktop + mobile (needs Playwright).
+#        visual_check.py on key URLs, desktop + mobile (needs Playwright). Each step prints what it covers.
 # Env:   PLAYWRIGHT_PYTHON  python that can `import playwright` (default: project venv, then python3)
 #        VERIFY_PORT        port for the temporary server (default: first free port from 8010)
 #        VERIFY_ADMIN_PASSWORD  if set, also checks /admin/ logged in as `admin`
@@ -20,18 +20,18 @@ FAIL=0
 step() { echo; echo "== $*"; }
 run()  { "$@" || { echo "FAILED: $*"; FAIL=1; return 1; }; }
 
-step "manage.py check"
+step "1/5 manage.py check - Django system checks (settings, apps, models, CMS)"
 run "$PY" manage.py check
 
-step "makemigrations --check ($OWN_APPS)"
+step "2/5 makemigrations --check ($OWN_APPS) - own apps have no model changes without a migration"
 # shellcheck disable=SC2086
 run "$PY" manage.py makemigrations --check --dry-run $OWN_APPS
 
-step "tests ($OWN_APPS)"
+step "3/5 tests ($OWN_APPS) - manage.py test for the own apps"
 # shellcheck disable=SC2086
 run "$PY" manage.py test $OWN_APPS
 
-step "seed idempotency"
+step "4/5 seed idempotency - seed_pages + seed_site twice; page/content counts must not change"
 count() { "$PY" manage.py shell -c "from cms.models import Page, PageContent; print(Page.objects.count(), PageContent.admin_manager.count())" | tail -n 1; }
 run "$PY" manage.py seed_pages && run "$PY" manage.py seed_site
 BEFORE=$(count)
@@ -39,7 +39,15 @@ run "$PY" manage.py seed_pages && run "$PY" manage.py seed_site
 AFTER=$(count)
 if [ "$BEFORE" = "$AFTER" ]; then echo "seed idempotent: pages/contents $BEFORE unchanged"; else echo "FAILED: seed changed counts $BEFORE -> $AFTER"; FAIL=1; fi
 
-step "visual check (desktop + mobile)"
+step "5/5 visual check (desktop 1280x800 + mobile 390x844)"
+echo "URLs:    $PAGES${VERIFY_ADMIN_PASSWORD:+ /admin/ (logged in as admin, desktop)}"
+echo "Asserts: HTTP status < 400; no console errors; no failed same-origin requests; not a 404 or Django error"
+echo "         page; non-empty body text; site name '{{SITE_NAME}}' present; NO horizontal overflow"
+echo "         (scrollWidth > clientWidth)."
+echo "NOT checked: layout/colour/contrast quality, images that return 200 but look wrong, JavaScript"
+echo "         behaviour, the logged-in CMS toolbar (unless admin check is enabled), cross-origin requests."
+echo "         A human (or you) must LOOK at the screenshots for those. The temporary server runs with the"
+echo "         django-debug-toolbar disabled (DJANGO_DEBUG_TOOLBAR=0) so its handle is not in the shots."
 PW=""
 for cand in "${PLAYWRIGHT_PYTHON:-}" "$ROOT/venv/bin/python" "$(command -v python3)"; do
   [ -n "$cand" ] && [ -x "$cand" ] && "$cand" -c "import playwright" 2>/dev/null && { PW="$cand"; break; }
@@ -47,8 +55,9 @@ done
 INCOMPLETE=0
 if [ -z "$PW" ]; then
   echo "SKIPPED: Playwright is not installed, so NO visual verification was done."
-  echo "  Install: pip install playwright && playwright install chromium"
-  echo "  Then:    PLAYWRIGHT_PYTHON=/path/to/python bin/verify.sh"
+  echo "  One-time setup (scratch venv, never system Python):"
+  echo "    python3 -m venv /tmp/pw-venv && /tmp/pw-venv/bin/pip install playwright && /tmp/pw-venv/bin/playwright install chromium"
+  echo "  Then:    PLAYWRIGHT_PYTHON=/tmp/pw-venv/bin/python bin/verify.sh"
   INCOMPLETE=1
 else
   PORT="${VERIFY_PORT:-$("$PY" - <<'PYEOF'
@@ -65,7 +74,7 @@ for p in range(8010, 8100):
 PYEOF
 )}"
   mkdir -p "$SHOTS"
-  "$PY" manage.py runserver "$PORT" --noreload >"$SHOTS/server.log" 2>&1 &
+  DJANGO_DEBUG_TOOLBAR=0 "$PY" manage.py runserver "$PORT" --noreload >"$SHOTS/server.log" 2>&1 &
   SERVER_PID=$!
   trap 'kill "$SERVER_PID" 2>/dev/null; wait "$SERVER_PID" 2>/dev/null' EXIT
   UP=0

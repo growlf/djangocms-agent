@@ -15,7 +15,8 @@ urlpatterns = [
     path('admin/docs/', include('django.contrib.admindocs.urls')),
     path('admin/', admin.site.urls),
 ]
-if settings.DEBUG:
+if getattr(settings, 'USE_DEBUG_TOOLBAR', False):  # same switch as settings.py (DEBUG and DJANGO_DEBUG_TOOLBAR)
     urlpatterns += [path('__debug__/', include('debug_toolbar.urls'))]
+if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)  # dev-only media
 urlpatterns += [path('', include('cms.urls'))]

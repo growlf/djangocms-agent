@@ -1,4 +1,11 @@
-"""Visual validation for DjangoCMS pages — screenshots, console/request checks, and text analysis."""
+"""Visual validation for DjangoCMS pages — screenshots, console/request checks, and text analysis.
+
+Asserts (each failure is an ISSUE line): HTTP status < 400, no console errors, no failed same-origin
+subresource requests, not a 404 page, not a Django debug error page, non-empty visible text, no
+horizontal overflow (documentElement.scrollWidth > clientWidth + 1px), and every --expect-text string
+present. It does NOT check layout quality, colors/contrast, broken images that return 200, cross-origin
+requests, or JavaScript behaviour: a human must look at the screenshot for those.
+"""
 import argparse
 import os
 import sys
@@ -64,6 +71,23 @@ def _first_h1(page):
         return h1.inner_text().strip() if h1 else ""
     except Exception:
         return ""
+
+
+def overflow_issue(scroll_width, client_width, tolerance=1):
+    """Return an ISSUE string when the page scrolls horizontally, else None (pure; unit-tested)."""
+    if scroll_width > client_width + tolerance:
+        return (f"ISSUE: horizontal overflow: page is {scroll_width}px wide in a "
+                f"{client_width}px viewport")
+    return None
+
+
+def _horizontal_overflow(page):
+    """(scrollWidth, clientWidth) of the document element, or None if it cannot be read."""
+    try:
+        return tuple(page.evaluate(
+            "[document.documentElement.scrollWidth, document.documentElement.clientWidth]"))
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -194,7 +218,14 @@ def check_url(url, out_path, width, height, expect_texts, login_spec):
             if not visible:
                 issues.append("ISSUE: empty page")
 
-            # 7. --expect-text checks
+            # 7. horizontal overflow (page wider than the viewport)
+            widths = _horizontal_overflow(page)
+            if widths:
+                msg = overflow_issue(*widths)
+                if msg:
+                    issues.append(msg)
+
+            # 8. --expect-text checks
             for et in expect_texts:
                 if et not in visible:
                     issues.append(f"ISSUE: missing text: {et}")

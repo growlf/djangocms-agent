@@ -121,7 +121,7 @@ Prefix: Django's own documentation uses `admin/doc/`; this skill and the default
 
 ### DjangoDebugToolbar (development only)
 ```python
-# settings.py: enable ONLY when DEBUG is on
+# settings.py: enable ONLY when DEBUG is on (the default site adds an opt-out, see below)
 if DEBUG:
     INSTALLED_APPS += ["debug_toolbar"]
     # index 1, NOT 0: ApphookReloadMiddleware must stay first in MIDDLEWARE
@@ -135,6 +135,8 @@ from django.conf import settings
 if settings.DEBUG:
     urlpatterns += [path("__debug__/", include("debug_toolbar.urls"))]
 ```
+
+The default site wraps this in one switch, `USE_DEBUG_TOOLBAR = DEBUG and DJANGO_DEBUG_TOOLBAR not in (0/false/no/off)`, and uses it for the app, the middleware and the `/__debug__/` url, so they are always present or absent together (`DJANGO_DEBUG_TOOLBAR=0` leaves nothing referencing the missing app). The small green tab on the right edge of pages when `DJANGO_DEBUG=1` is **this debug toolbar's handle, not the CMS toolbar** (anonymous visitors get no CMS toolbar markup); it only exists when DEBUG is on, and it overlaps content in screenshots, which is why the generated `bin/verify.sh` starts its server with `DJANGO_DEBUG_TOOLBAR=0`.
 
 Never install the toolbar unconditionally; gate apps, middleware, `INTERNAL_IPS` and the URL include on `DEBUG`. Verified: with `DJANGO_DEBUG` unset none of them are present; with it set all are, and `ApphookReloadMiddleware` is still first.
 

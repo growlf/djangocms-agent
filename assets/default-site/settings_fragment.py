@@ -95,8 +95,13 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-if DEBUG:
-    # Debug toolbar: development only, never installed when DEBUG is off.
+# django-debug-toolbar: development only. It is the small green handle on the right edge of pages (NOT
+# the CMS toolbar; anonymous visitors get no CMS toolbar). On by default when DEBUG is on; set
+# DJANGO_DEBUG_TOOLBAR=0 (or false/no/off) to remove the app, middleware and /__debug__/ url together.
+USE_DEBUG_TOOLBAR = DEBUG and os.environ.get('DJANGO_DEBUG_TOOLBAR', '1').strip().lower() not in (
+    '0', 'false', 'no', 'off')
+
+if USE_DEBUG_TOOLBAR:
     INSTALLED_APPS += ['debug_toolbar']
     MIDDLEWARE.insert(1, 'debug_toolbar.middleware.DebugToolbarMiddleware')
     INTERNAL_IPS = ['127.0.0.1', '::1']  # exact IPs only (no CIDR)

@@ -23,7 +23,7 @@ It was built and verified in a scratch project (django-cms 5.1.3, Django 5.2.17)
 | `starter/` | `starter/` | app: `HtmlBlock` plugin, `seeding.py` helpers, `seed_pages`, `seed_site`, tests |
 | `__PROJECT_NAME__/context_processors.py` | `<project>/context_processors.py` | exposes `SITE_NAME` as `site_name` |
 | `settings_fragment.py` | `<project>/settings.py` | the complete settings module (or merge sections) |
-| `urls_fragment.py` | `<project>/urls.py` | admindocs, admin, debug toolbar (DEBUG only), cms.urls last |
+| `urls_fragment.py` | `<project>/urls.py` | admindocs, admin, debug toolbar (DEBUG and `DJANGO_DEBUG_TOOLBAR`), cms.urls last |
 | `manage.py` | `manage.py` | standard, points at `__PROJECT_NAME__.settings` |
 | `requirements.txt` | `requirements.txt` | pinned, verified set |
 | `env.example.template`, `gitignore.template` | `.env.example`, `.gitignore` | environment variables; ignore rules |
@@ -42,6 +42,14 @@ this repo; they are plain Python and compile as-is.
     DJANGO_DEBUG=1 python manage.py seed_site      # landing content, About, Style & Capabilities
     DJANGO_DEBUG=1 DJANGO_SECRET_KEY=dev python manage.py runserver 8005
     DJANGO_DEBUG=1 DJANGO_SECRET_KEY=dev python manage.py test starter
+
+## Debug toolbar handle
+
+With `DJANGO_DEBUG=1` pages show a small green tab with a dark glyph on the right edge. That is the
+**django-debug-toolbar handle, not the CMS toolbar** (anonymous visitors get no CMS toolbar markup). It only
+exists when DEBUG is on. Set `DJANGO_DEBUG_TOOLBAR=0` (or `false`/`no`/`off`) to remove it: the app, the
+middleware and the `/__debug__/` url are all dropped together (`USE_DEBUG_TOOLBAR` in `settings.py`).
+`bin/verify.sh` uses that switch so screenshots are clean.
 
 `seed_site --reset` clears and refills the placeholders that command owns.
 

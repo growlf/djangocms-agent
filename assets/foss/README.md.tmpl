@@ -17,7 +17,7 @@ renders every verified plugin.
     venv/bin/python manage.py seed_site
     venv/bin/python manage.py runserver 8010
 
-Open http://localhost:8010/ and sign in at http://localhost:8010/admin/. Edit pages by adding
+Open http://localhost:8010/ (use the first free port at or above 8000; check with `ss -ltn`) and sign in at http://localhost:8010/admin/. Edit pages by adding
 `?edit` to a URL while logged in. `DJANGO_DEBUG=1` is development only; production needs
 `DJANGO_SECRET_KEY` and `DJANGO_ALLOWED_HOSTS` (see `.env.example`).
 
@@ -27,7 +27,21 @@ Open http://localhost:8010/ and sign in at http://localhost:8010/admin/. Edit pa
 
 Runs `check`, `makemigrations --check`, the tests, seed idempotency, and Playwright screenshots
 (desktop and mobile) of the main pages into `verify-shots/`. Look at them. Requires
-`pip install playwright && playwright install chromium` for the visual step.
+Playwright for the visual step; install it once in a scratch venv, not system Python:
+
+    python3 -m venv /tmp/pw-venv && /tmp/pw-venv/bin/pip install playwright && /tmp/pw-venv/bin/playwright install chromium
+    PLAYWRIGHT_PYTHON=/tmp/pw-venv/bin/python bin/verify.sh
+
+Without it `bin/verify.sh` ends `VERIFY RESULT: INCOMPLETE`. The verification server runs with
+`DJANGO_DEBUG_TOOLBAR=0`.
+
+## Known warnings and development extras
+
+- `treebeard.E001` (a warning about `cms.PageManager`) is printed on every `manage.py` command. It comes
+  from django-cms 5.1.3 with django-treebeard 5.3.x, is upstream, and is harmless until treebeard 6; do not
+  try to fix it in this project.
+- With `DJANGO_DEBUG=1` a small green tab on the right edge of pages is the django-debug-toolbar handle (not
+  the CMS toolbar). It only exists when DEBUG is on; set `DJANGO_DEBUG_TOOLBAR=0` to remove it.
 
 ## Project documents
 
