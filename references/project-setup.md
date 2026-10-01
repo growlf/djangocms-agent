@@ -29,7 +29,7 @@ TEMPLATES = [
 ### MIDDLEWARE (order matters)
 ```python
 MIDDLEWARE = [
-    "cms.middleware.utils.ApphookReloadMiddleware",          # first: reloads stale URLconfs after apphook changes
+    "cms.middleware.utils.ApphookReloadMiddleware",          # first: reloads stale URLconfs after apphook changes (cms convention; other positions untested)
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",              # after sessions
@@ -109,6 +109,8 @@ Never install the toolbar unconditionally; gate it on DEBUG.
 Run `python manage.py check --deploy` against your production settings; it must report nothing you have not consciously accepted. Verified 2026-10-01 on a scratch project: with the settings below, only W005, W019 and W021 remained.
 
 ```python
+import os
+
 DEBUG = False
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]        # 50+ chars, 5+ unique; never commit it
 ALLOWED_HOSTS = ["example.org"]                       # never ["*"]
