@@ -98,3 +98,28 @@ python manage.py cms check
 # Clear CMS cache
 python manage.py clear_cms_cache
 ```
+
+### Apphooks
+
+Verified on cms 5.1.3 / Django 5.2.17 (testsite project, 2026-09-30).
+
+```python
+# myapp/cms_apps.py
+from cms.app_base import CMSApp
+from cms.apphook_pool import apphook_pool
+
+@apphook_pool.register
+class MyApp(CMSApp):
+    name = "My app"
+    app_name = "myapp"            # must equal app_name in myapp/urls.py
+    def get_urls(self, page=None, language=None, **kwargs):
+        return ["myapp.urls"]
+```
+
+```python
+page = create_page("Log", "page.html", "en", apphook="MyApp", apphook_namespace="myapp", in_navigation=True)
+```
+
+- If `myapp/urls.py` sets `app_name`, `CMSApp.app_name` **and** `apphook_namespace=` are both required, or `{% url 'myapp:...' %}` raises `NoReverseMatch`.
+- `cms.middleware.utils.ApphookReloadMiddleware` must be in `MIDDLEWARE`.
+- In tests, call `reload_urlconf()` (`from cms.utils.apphook_reload import reload_urlconf`) after creating or changing apphook pages; the urlconf is cached.
