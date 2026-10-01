@@ -64,7 +64,7 @@ Versioning enables: unpublished drafts, version numbers, content approval workfl
 # In urls.py
 path('admin/docs/', include('django.contrib.admindocs.urls')),
 ```
-Docs available at `/admin/docs/`. Requires `docutils` (included with Django).
+Docs available at `/admin/docs/`. Requires `docutils`, which is **not** installed with Django: `pip install docutils` (without it `/admin/docs/` shows "Please install docutils").
 
 ### DjangoDebugToolbar (development only)
 ```python

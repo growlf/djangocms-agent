@@ -54,6 +54,7 @@ Starting point; items not marked verified in CHANGELOG are unproven:
 ```python
 # settings.py - starting point (plugin apps below other than text/link/versioning/filer are untested on cms 5.1.3)
 INSTALLED_APPS = [
+    'django.contrib.sites',  # REQUIRED by cms (also set SITE_ID = 1) — startup fails without it
     'cms', 'menus', 'sekizai', 'treebeard',  # CMS core
     'djangocms_admin_style',  # Admin styling
     'mptt', 'easy_thumbnails', 'filer',  # Media
@@ -81,7 +82,7 @@ TEMPLATES = [{
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 ```
 
-### Template Structure (unverified — render-test before relying on it)
+### Template Structure (renders on cms 5.1.3 once the menu include is supplied)
 
 Note: `menu/hamburger.html` and `{{ site_name }}` are not shipped/defined by this repo; supply your own or replace them.
 
@@ -115,9 +116,11 @@ Note: `menu/hamburger.html` and `{{ site_name }}` are not shipped/defined by thi
 </html>
 ```
 
-### Menu Template (UNVERIFIED — render-test before relying on it)
+### Menu Template (both variants render on cms 5.1.3)
 
-Preferred approach: `{% load menu_tags %}` then `{% show_menu 0 100 100 100 %}`. The hand-rolled loop below uses `request.current_page.get_root_nodes`, which has not been verified to exist.
+Preferred: `{% load menu_tags %}` then `{% show_menu 0 100 100 100 %}`. It only lists pages created with `in_navigation=True` (`create_page` defaults to `False`, which gives an empty menu). It works with or without `cms.context_processors.cms_settings`.
+
+The hand-rolled loop below (`request.current_page.get_root_nodes`) also renders; it lists every root page regardless of `in_navigation` and has no submenu or active-trail logic.
 
 ```html
 {% load cms_tags %}
@@ -137,7 +140,7 @@ Preferred approach: `{% load menu_tags %}` then `{% show_menu 0 100 100 100 %}`.
 </nav>
 ```
 
-### Mobile Verification Checklist (run these checks; none are proven yet)
+### Mobile Verification Checklist (not yet run; the desktop render was verified, mobile/responsive behaviour was not)
 
 - [ ] Hamburger button visible on mobile (< 768px)
 - [ ] Menu opens on click

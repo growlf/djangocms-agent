@@ -49,7 +49,7 @@ cms-visible behavior: page rendering, placeholder content, menu output.
 ### Templates
 
 - Use `{% load cms_tags %}` and `{% load menu_tags %}` correctly.
-- `{% show_menu %}` requires `{% load menu_tags %}` and `cms.context_processors.cms_settings` context processor (not `menus.context_processors.menus` which does not exist).
+- `{% show_menu %}` needs `{% load menu_tags %}` and pages with `in_navigation=True` (`create_page` defaults to `False`). `cms.context_processors.cms_settings` is recommended, not required; `menus.context_processors.menus` does not exist.
 - `{% %}` inside `{# #}` comments parse-fails on this build — keep comments free of `{% %}`.
 
 ### Custom Plugins
