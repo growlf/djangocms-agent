@@ -508,7 +508,7 @@ def test_dev_compose_is_standalone_loopback_only_and_prod_has_no_dev_settings(tm
     root = scaffold(tmp_path)
     dev = (root / "docker-compose.dev.yml").read_text()
     prod = (root / "docker-compose.yml").read_text()
-    assert "name: acme_garden_club-dev" in dev and "8880" in dev
+    assert "name: acme_garden_club-dev" in dev and "${DEV_PORT:-8880}" in dev
     assert "target: dev" in dev and ".:/app" in dev and "runserver" in (root / "docker/dev-entrypoint.sh").read_text()
     for port in re.findall(r'^\s*-\s*"([^"]*:\d+:\d+)"', dev, re.M):
         assert port.startswith("127.0.0.1:"), port
