@@ -1,9 +1,15 @@
 ## Docker + PostgreSQL
 
 `bin/docker-up.sh` builds and starts `db` (postgres:16-alpine, no published port) and `app` (gunicorn +
-WhiteNoise) as compose project `{{PROJECT_PACKAGE}}` on http://127.0.0.1:8889/ (`APP_PORT` changes the port;
-then also check `DJANGO_CSRF_TRUSTED_ORIGINS`). Secrets live in a gitignored `.env` made by
+WhiteNoise, production image) as compose project `{{PROJECT_PACKAGE}}` on http://127.0.0.1:8889/ (`APP_PORT`
+changes the port; then also check `DJANGO_CSRF_TRUSTED_ORIGINS`). Secrets live in a gitignored `.env` made by
 `bin/docker-env.sh`; never print or commit it. `bin/docker-down.sh` keeps volumes unless `--volumes`.
-Health endpoint: `/health/`. Seed in one step with `manage.py seed`. Local SQLite workflow above is
-unchanged. Never run `docker volume prune` or a bare `down -v`. Details: README.
+Health endpoint: `/health/`. `SEED_ON_START=1` seeds a fresh database once (`seed --first-run-only`); emptied
+placeholders are never refilled on restart. Postgres uses a shared DatabaseCache (all workers see publishes).
+`bin/dev-up.sh` is a separate dev stack (project `{{PROJECT_PACKAGE}}-dev`, 127.0.0.1:8880, debug toolbar,
+bind-mounted source). Backup/restore: `bin/docker-backup.sh`, `bin/docker-restore.sh` (db + media; restore only
+into an empty database; `--wipe` is the only path that runs `down -v`). Images are pinned by digest:
+`bin/pin-images.sh --check`; the pins are refreshed with each `vX.Y.Z` release (`bin/release.sh`, which never
+pushes). `requirements.txt` is production only; dev packages go in `requirements-dev.txt`. Local SQLite workflow
+above is unchanged. Never run `docker volume prune` or a bare `down -v`. Details: README.
 

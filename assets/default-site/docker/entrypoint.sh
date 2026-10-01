@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Container boot: wait for DB, migrate, collectstatic, optional seed, then gunicorn.
+# Container boot: wait for DB, migrate, cache table, collectstatic, optional repair/seed, then gunicorn.
 set -euo pipefail
 
 if [ "${DB_ENGINE:-}" = "postgres" ]; then
@@ -26,6 +26,11 @@ mkdir -p staticfiles
 echo "Applying migrations..."
 python manage.py migrate --noinput
 
+if [ "${DJANGO_CACHE:-}" = "db" ] || { [ -z "${DJANGO_CACHE:-}" ] && [ "${DB_ENGINE:-}" = "postgres" ]; }; then
+    echo "Creating the shared cache table (idempotent)..."
+    python manage.py createcachetable
+fi
+
 echo "Collecting static files..."
 python manage.py collectstatic --noinput --verbosity 0
 
@@ -35,8 +40,9 @@ if [ "${CREATE_VERSIONS:-0}" = "1" ]; then
 fi
 
 if [ "${SEED_ON_START:-0}" = "1" ]; then
-    echo "Seeding (idempotent)..."
-    python manage.py seed
+    # Fresh database only: a restart never refills a placeholder an editor emptied on purpose.
+    echo "Seeding a fresh database (skipped when the home page exists)..."
+    python manage.py seed --first-run-only
 fi
 
 echo "Starting gunicorn..."

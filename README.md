@@ -63,10 +63,28 @@ plugins, versioning, DEBUG-only debug toolbar, admindocs, FOSS files (LICENSE, C
 CONTRIBUTING, SECURITY, issue/PR templates, AGENTS.md + CLAUDE.md recording the purpose), an OpsKit
 `.opskit/pack.yml`, a venv with pinned requirements, migrated and seeded database, an `admin` user with a
 random password printed once, a git repo, and `bin/verify.sh` (check, migrations, tests, seed idempotency,
-Playwright screenshots desktop + mobile) and, unless `--no-docker`, a Docker + PostgreSQL stack
-(`bin/docker-up.sh`, WhiteNoise, `/health/`, default port 8889 via `APP_PORT`). Name and purpose must come from the human; `--dry-run` shows the
+Playwright screenshots desktop + mobile), `bin/release.sh` + `CHANGELOG.md`, and, unless `--no-docker`, a hardened
+Docker + PostgreSQL stack: production image (shared DB cache, Secure cookies behind a proxy, loopback hosts, digest-pinned
+images, `bin/docker-backup.sh`/`docker-restore.sh`, `bin/pin-images.sh`) on port 8889 via `APP_PORT`, and a separate
+dev stack (`bin/dev-up.sh`, debug toolbar, source bind-mounted, 127.0.0.1:8880). `requirements.txt` is production only,
+`requirements-dev.txt` adds the debug toolbar. Name and purpose must come from the human; `--dry-run` shows the
 plan. Exit codes 0 ok, 1 step failed, 2 usage error. Full reference: `references/new-site.md`.
 Tests: `python3 -m pytest tests/`.
+
+## Maintaining the skill
+
+The generated sites pin their Docker images by digest, and tags move. Before cutting a release of this skill
+(and whenever a base image tag changes) refresh and review the pins in `assets/default-site/`:
+
+```bash
+make pins-check     # or: python3 bin/update-asset-pins.py --check   (read-only; exit 1 = stale, needs network)
+make pins           # rewrite Dockerfile / docker-compose*.yml pins, then review `git diff` and commit
+make test           # python3 -m pytest -q tests  (offline; tests/test_asset_pins.py checks the pins are well formed)
+ASSET_PINS_LIVE=1 python3 -m pytest -q tests/test_asset_pins.py   # optional live comparison with the registry
+```
+
+Uses the registry HTTP API only (no Docker daemon, no pull). Sites already generated refresh their own pins with
+their `bin/release.sh` / `bin/pin-images.sh`.
 
 ## Find packages (Django Packages)
 

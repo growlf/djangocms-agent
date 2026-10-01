@@ -1,0 +1,60 @@
+{% load i18n static sekizai_tags cms_tags %}{% comment %}
+  Project override of djangocms_googlemap/default/map.html (same data-attributes and containers).
+  Differences: (1) without GOOGLE_MAPS_API_KEY nothing from Google is loaded and a notice is shown
+  (Google would otherwise overlay an error dialog); (2) the plugin script is only loaded once the
+  Google API has loaded, so an offline visitor gets the fallback notice instead of the console error
+  "google is not defined"; (3) an invalid or rejected key (gm_authFailure) shows the same notice.
+{% endcomment %}
+{% get_current_language as LANGUAGE_CODE %}
+{% if not googlemap_key %}
+<div class="djangocms-googlemap site-map-notice" role="note">
+    <p><strong>{% if instance.title %}{{ instance.title }}: {% endif %}</strong>Map not available: no Google Maps API key is configured for this site.</p>
+</div>
+{% else %}
+<div class="djangocms-googlemap js-djangocms-googlemap"
+    data-zoom="{{ instance.zoom }}"
+    data-style="{{ instance.style }}"
+    data-map-id="{{ instance.map_id }}"
+    data-lat="{{ instance.lat|stringformat:"f" }}"
+    data-lng="{{ instance.lng|stringformat:"f" }}"
+    data-zoom-control="{{ instance.zoom_control|lower }}"
+    data-street-view-control="{{ instance.street_view_control|lower }}"
+    data-rotate-control="{{ instance.rotate_control|lower }}"
+    data-scale-control="{{ instance.scale_control|lower }}"
+    data-fullscreen-control="{{ instance.fullscreen_control|lower }}"
+    data-pan-control="{{ instance.pan_control|lower }}"
+    data-double-click-zoom="{{ instance.double_click_zoom|lower }}"
+    data-draggable="{{ instance.draggable|lower }}"
+    data-keyboard-shortcuts="{{ instance.keyboard_shortcuts|lower }}"
+    data-scrollwheel="{{ instance.scrollwheel|lower }}"
+    data-map-type-control="{{ instance.map_type_control }}"
+    {% if instance.title %} title="{{ instance.title }}"{% endif %}
+>
+    <div class="djangocms-googlemap-container js-djangocms-googlemap-container"
+        style="width:{{ instance.width }};height:{{ instance.height }};"></div>
+    <p class="site-map-notice" role="note" hidden>Map could not be loaded (it needs internet access and a valid Google Maps API key).</p>
+    {% for plugin in instance.child_plugin_instances %}
+        {% render_plugin plugin %}
+    {% endfor %}
+</div>
+{% if request.toolbar and request.toolbar.edit_mode_active or request.toolbar and request.toolbar.edit_mode %}
+    {% addtoblock "css" %}
+        <style type="text/css">
+            .gm-control-active>img { box-sizing: content-box; left: 50%; pointer-events: none; position: absolute; top: 50%; transform: translate(-50%,-50%); }
+            .gm-control-active>img:first-child { z-index: 100; }
+        </style>
+    {% endaddtoblock %}
+{% endif %}
+{% with cms_js_classes="cms-execute-js-to-render cms-trigger-event-window-load" %}
+    {% addtoblock "js" %}
+        {% spaceless %}
+            <script src="{% static 'js/googlemap-guard.js' %}" data-plugin-js="{% static 'djangocms_googlemap/js/djangocms.googlemap.js' %}"
+                {% if request.toolbar and request.toolbar.edit_mode_active or request.toolbar and request.toolbar.edit_mode %}class="{{cms_js_classes}}"{% endif %}></script>
+            <script src="https://maps.googleapis.com/maps/api/js?callback=site_gmap_ready&language={{ LANGUAGE_CODE }}&key={{ googlemap_key|urlencode }}"
+                onerror="window.site_gmap_failed &amp;&amp; window.site_gmap_failed()"
+                {% if request.toolbar and request.toolbar.edit_mode_active or request.toolbar and request.toolbar.edit_mode %}class="{{cms_js_classes}}"{% endif %}
+            async defer></script>
+        {% endspaceless %}
+    {% endaddtoblock %}
+{% endwith %}
+{% endif %}

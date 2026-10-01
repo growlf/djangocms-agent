@@ -1,7 +1,7 @@
 ## Docker + PostgreSQL
 
-The container stack runs PostgreSQL 16 and the site (gunicorn, WhiteNoise for static files, DEBUG and the
-debug toolbar off) as compose project `{{PROJECT_PACKAGE}}`.
+The container stack runs PostgreSQL 16 and the site (gunicorn with 3 workers, WhiteNoise for static files, DEBUG and
+the debug toolbar off, production image without dev packages) as compose project `{{PROJECT_PACKAGE}}`.
 
     bin/docker-up.sh               # creates .env if absent, builds, starts, waits until healthy, prints the URL
     bin/docker-down.sh             # stops; keeps data volumes
@@ -9,24 +9,61 @@ debug toolbar off) as compose project `{{PROJECT_PACKAGE}}`.
 
 - **Ports:** the app is published on `127.0.0.1:${APP_PORT:-8889}` (`APP_PORT=8891 bin/docker-up.sh`, or set it
   in `.env`; override the address with `APP_BIND`). PostgreSQL publishes no host port.
-- **CSRF origin:** admin login fails with a CSRF 403 unless the origin you browse to is trusted. The default
-  follows `APP_PORT` for `localhost`/`127.0.0.1`; for any other host name or a TLS proxy set
-  `DJANGO_CSRF_TRUSTED_ORIGINS` (with scheme and port) and `DJANGO_ALLOWED_HOSTS` in `.env`.
+- **CSRF origin and hosts:** admin login fails with a CSRF 403 unless the origin you browse to is trusted. The
+  default follows `APP_PORT` for `localhost`/`127.0.0.1`; for any other host name or a TLS proxy set
+  `DJANGO_CSRF_TRUSTED_ORIGINS` (with scheme and port) and `DJANGO_ALLOWED_HOSTS` in `.env`. `localhost` and
+  `127.0.0.1` are always allowed (the container healthcheck uses `127.0.0.1`).
 - **Secrets:** `bin/docker-env.sh` writes `.env` (mode 600) with a random `DB_PASSWORD` and
-  `DJANGO_SECRET_KEY` only if `.env` does not exist; it never overwrites or prints them. `.env` is gitignored.
-  See `.env.example` for the other knobs.
-- **First run:** `SEED_ON_START=1` in `.env` (runs `manage.py seed`, idempotent), or
-  `docker compose exec app python manage.py seed`. Then
+  `DJANGO_SECRET_KEY` only if `.env` does not exist; it never overwrites or prints them, and writes nothing at
+  all when it cannot generate them (needs `python3` or `openssl`). `.env` is gitignored. See `.env.example`.
+- **First run:** `SEED_ON_START=1` in `.env` seeds a FRESH database once (`manage.py seed --first-run-only`:
+  skipped when the home page exists, so a restart never refills a placeholder an editor emptied on purpose).
+  Re-seed deliberately with `docker compose exec app python manage.py seed`. Then
   `docker compose exec app python manage.py createsuperuser`.
+- **Shared cache:** with PostgreSQL the default cache is a database table (`django_cache`, created at start by
+  `createcachetable`) shared by all gunicorn workers. A per-process cache served a stale menu after
+  publishing (navigation present on some requests only). `DJANGO_CACHE=locmem|db` overrides it.
+- **Content that predates versioning** (pages without a version row render as missing): set
+  `CREATE_VERSIONS=1` and `CREATE_VERSIONS_USER=<username>` once, restart, then unset `CREATE_VERSIONS`.
 - **Health:** `GET /health/` returns `{"status": "ok"}` after a cheap `SELECT 1` (503 if the database is
   down); the compose healthcheck uses it.
-- **Media:** uploads live in the `media` volume. With DEBUG off Django does not serve them unless
-  `DJANGO_SERVE_MEDIA=1` (the compose default). Behind a real proxy serve `/media/` there and set it to 0.
+- **Media:** uploads live in the `media` volume, including filer's private files (`media/filer_private/`, not
+  served under `/media/`). With DEBUG off Django does not serve uploads unless `DJANGO_SERVE_MEDIA=1` (the
+  compose default). Behind a real proxy serve `/media/` there and set it to 0.
+- **Behind a TLS proxy:** `DJANGO_BEHIND_PROXY=1` trusts `X-Forwarded-Proto` and marks the session, CSRF and
+  language cookies Secure; optional `DJANGO_HSTS_SECONDS`, `DJANGO_HSTS_INCLUDE_SUBDOMAINS` and
+  `DJANGO_SSL_REDIRECT` (all off by default; `/health/` is exempt from the redirect). **Warning:** never set
+  `APP_BIND=0.0.0.0` together with `DJANGO_BEHIND_PROXY=1` unless only the proxy can reach the port,
+  otherwise any client can forge `X-Forwarded-Proto`.
 - **Logs:** `docker compose logs -f app`.
-- **Backup:** `docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > backup.sql`
-  (media is in the `media` volume). **Restore:** pipe it into `psql` in an empty database.
+- **Backup:** `bin/docker-backup.sh [DIR]` writes `db.sql` and `media.tar.gz` (default `backups/<UTC time>`, mode
+  600, refuses an existing directory). The stack must be running; keep backups private.
+- **Restore:** on a fresh stack start ONLY the database, load the dump with `ON_ERROR_STOP`, then start the app
+  (restoring into a database the app already migrated fails with hundreds of "already exists" errors).
+  `bin/docker-restore.sh DIR` does exactly that and refuses a non-empty database; `--wipe` additionally runs
+  `docker compose down -v` for this project (deleting its volumes), only because you asked. By hand:
+
+      docker compose up -d --wait db
+      docker compose exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" "$POSTGRES_DB"' < DIR/db.sql
+      docker compose up -d --wait app
+      docker compose exec -T app tar -C /app/media -xzf - < DIR/media.tar.gz
+
+  Another compose project name: `COMPOSE_PROJECT_NAME=name bin/docker-backup.sh`.
 - **Reset:** `bin/docker-down.sh --volumes`, then `bin/docker-up.sh`. Never use `docker volume prune`.
-- **Local SQLite is unchanged:** without `DB_ENGINE=postgres` the settings use `db.sqlite3`, so the Quick
-  start, `runserver` and `bin/verify.sh` work as before. Opt out of all Docker files at scaffold time with
-  `bin/new-site.py --no-docker`.
+- **Dev stack:** `bin/dev-up.sh` starts a separate stack (`docker-compose.dev.yml`, project
+  `{{PROJECT_PACKAGE}}-dev`, `127.0.0.1:8880`, `DEV_PORT` changes it): DEBUG and debug toolbar on, source
+  bind-mounted with runserver autoreload, PostgreSQL, own volumes. It never touches the production stack.
+  `bin/dev-down.sh` keeps its volumes unless `--volumes`.
+- **Production vs development packages:** `requirements.txt` is production only; `requirements-dev.txt` adds the
+  debug toolbar. The Dockerfile has `dev` and `production` stages (production is the default and contains no
+  debug toolbar). `docutils` stays in production because `/admin/docs/` is enabled.
+- **Image pins and releases:** the Dockerfile and compose images are pinned by digest (`python:3.12-slim@sha256:...`,
+  tag kept readable). `bin/pin-images.sh --check` reports stale pins (registry HTTP API, no Docker daemon needed),
+  `bin/pin-images.sh` rewrites them (clean git tree required), `--dry-run` only shows. `bin/release.sh vX.Y.Z`
+  refreshes the pins, runs the checks and tests, writes `VERSION` and `CHANGELOG.md`, makes the release commit and
+  annotated tag, and PRINTS the push commands (it never pushes). The app image is
+  `${APP_IMAGE:-{{PROJECT_PACKAGE}}}:${APP_VERSION:-latest}`.
+- **Local SQLite is unchanged:** without `DB_ENGINE=postgres` the settings use `db.sqlite3` and a local cache, so
+  the Quick start, `runserver` and `bin/verify.sh` work as before. Opt out of all Docker files at scaffold time
+  with `bin/new-site.py --no-docker`.
 

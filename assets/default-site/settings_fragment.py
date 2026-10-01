@@ -5,6 +5,7 @@ Not set on purpose: CMS_TOOLBAR_REQUIRE_SUPERUSER and ANONYMOUS_EDIT do not exis
 (see cms/utils/conf.py); the real switch is CMS_TOOLBAR_ANONYMOUS_ON.
 """
 
+import importlib.util
 import os
 from pathlib import Path
 
@@ -29,8 +30,12 @@ if not SECRET_KEY:
 ALLOWED_HOSTS = [
     h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if h.strip()
 ]
-if DEBUG and not ALLOWED_HOSTS:
-    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+# The container healthcheck calls http://127.0.0.1:8000/health/ (Host: 127.0.0.1), so loopback is always
+# allowed, even when DJANGO_ALLOWED_HOSTS lists only the public name (otherwise the container would be
+# reported unhealthy and bin/docker-up.sh would abort).
+for _loopback in ('localhost', '127.0.0.1'):
+    if _loopback not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_loopback)
 
 
 def env_flag(name, default=''):
@@ -42,8 +47,23 @@ def env_flag(name, default=''):
 CSRF_TRUSTED_ORIGINS = [
     o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()
 ]
-if env_flag('DJANGO_BEHIND_PROXY'):  # only behind a proxy that sets (and strips client-sent) X-Forwarded-Proto
+BEHIND_PROXY = env_flag('DJANGO_BEHIND_PROXY')
+if BEHIND_PROXY:
+    # A TLS-terminating proxy in front: trust its X-Forwarded-Proto (it must set it and strip any
+    # client-sent value; never publish the app port to untrusted clients with this on) and make the
+    # session, CSRF and language cookies Secure. Plain-HTTP LAN use (variable unset) keeps non-Secure
+    # cookies, which a browser would otherwise refuse to send over http://.
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    LANGUAGE_COOKIE_SECURE = True
+    # Optional HSTS (seconds); off by default because it is sticky in browsers. Only sent on https.
+    SECURE_HSTS_SECONDS = int(os.environ.get('DJANGO_HSTS_SECONDS', '0') or 0)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_flag('DJANGO_HSTS_INCLUDE_SUBDOMAINS')
+    # Redirect http -> https (needs the proxy to send X-Forwarded-Proto). Off by default; the
+    # container healthcheck talks plain http to gunicorn directly and /health/ is exempt.
+    SECURE_SSL_REDIRECT = env_flag('DJANGO_SSL_REDIRECT')
+    SECURE_REDIRECT_EXEMPT = [r'^health/$']
 
 
 # --- Applications -----------------------------------------------------------------------------
@@ -110,17 +130,31 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# django-debug-toolbar: development only. It is the small green handle on the right edge of pages (NOT
-# the CMS toolbar; anonymous visitors get no CMS toolbar). On by default when DEBUG is on; set
-# DJANGO_DEBUG_TOOLBAR=0 (or false/no/off) to remove the app, middleware and /__debug__/ url together.
-USE_DEBUG_TOOLBAR = DEBUG and os.environ.get('DJANGO_DEBUG_TOOLBAR', '1').strip().lower() not in (
-    '0', 'false', 'no', 'off')
+# django-debug-toolbar: development only (requirements-dev.txt; the production image does not contain
+# it). It is the small green handle on the right edge of pages (NOT the CMS toolbar; anonymous visitors
+# get no CMS toolbar). On by default when DEBUG is on AND the package is installed; set
+# DJANGO_DEBUG_TOOLBAR=0 (or false/no/off) to remove the app, middleware and /__debug__/ url together. A
+# DEBUG run without the package (only requirements.txt installed) simply has no toolbar instead of failing.
+USE_DEBUG_TOOLBAR = (
+    DEBUG
+    and os.environ.get('DJANGO_DEBUG_TOOLBAR', '1').strip().lower() not in ('0', 'false', 'no', 'off')
+    and importlib.util.find_spec('debug_toolbar') is not None
+)
 
 if USE_DEBUG_TOOLBAR:
     INSTALLED_APPS += ['debug_toolbar']
     MIDDLEWARE.insert(1, 'debug_toolbar.middleware.DebugToolbarMiddleware')
     INTERNAL_IPS = ['127.0.0.1', '::1']  # exact IPs only (no CIDR)
     DEBUG_TOOLBAR_CONFIG = {'SHOW_COLLAPSED': True}  # start as a small handle, not covering the page
+    if env_flag('DJANGO_DEBUG_TOOLBAR_ANY_IP'):
+        # Inside the dev container requests arrive from the Docker gateway, not 127.0.0.1. The dev compose
+        # file publishes the port on the host's loopback only, so showing the toolbar to every client is safe there.
+        DEBUG_TOOLBAR_CONFIG['SHOW_TOOLBAR_CALLBACK'] = '__PROJECT_NAME__.settings.show_toolbar_to_everyone'
+
+
+def show_toolbar_to_everyone(request):
+    return True
+
 
 ROOT_URLCONF = '__PROJECT_NAME__.urls'
 WSGI_APPLICATION = '__PROJECT_NAME__.wsgi.application'
@@ -174,6 +208,27 @@ else:
         }
     }
 
+# Cache. django CMS keeps its menu, page and placeholder caches (and their invalidation) in the default
+# cache. A per-process LocMemCache is wrong with several gunicorn workers: a publish only invalidates
+# the worker that handled it, so navigation changes show up on some requests and not others. So with
+# PostgreSQL (the container setup) the default cache is a DatabaseCache table shared by all workers
+# (created by `manage.py createcachetable`, run by docker/entrypoint.sh). DJANGO_CACHE=locmem|db
+# overrides the choice; local single-process SQLite runs keep locmem.
+_cache_choice = os.environ.get('DJANGO_CACHE', '').strip().lower()
+if not _cache_choice:
+    _cache_choice = 'db' if DATABASES['default']['ENGINE'].endswith('postgresql') else 'locmem'
+if _cache_choice == 'db':
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'django_cache',
+        }
+    }
+elif _cache_choice == 'locmem':
+    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
+else:
+    raise ImproperlyConfigured("DJANGO_CACHE must be 'db' or 'locmem' (or unset).")
+
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -223,7 +278,8 @@ CMS_TEMPLATES = [
     ('landing.html', 'Landing page (hero)'),
     ('standard.html', 'Standard page (right sidebar)'),
 ]
-# No 'plugins' allow-lists: every installed plugin is available in every slot.
+# No 'plugins' allow-lists: every installed plugin is available in every slot (the Google Map plugins
+# are removed below when there is no API key).
 CMS_PLACEHOLDER_CONF = {
     CONTENT_SLOT: {'name': 'Content'},
     'sidebar': {'name': 'Sidebar'},
@@ -233,6 +289,13 @@ CMS_PLACEHOLDER_CONF = {
     'feature_3': {'name': 'Feature 3'},
     'cta': {'name': 'Call to action'},
 }
+# While developing, edits to templates and static content must show up on the next request, so the CMS
+# page, placeholder and plugin caches are off under DEBUG (they are real cms 5.1.3 settings, see
+# cms/utils/conf.py). Set DJANGO_CMS_CACHE=1 to keep them on in a DEBUG run.
+if DEBUG and not env_flag('DJANGO_CMS_CACHE'):
+    CMS_PAGE_CACHE = False
+    CMS_PLACEHOLDER_CACHE = False
+    CMS_PLUGIN_CACHE = False
 # Hide the toolbar login prompt from anonymous visitors. Verified in cms/utils/conf.py of 5.1.3;
 # CMS_TOOLBAR_REQUIRE_SUPERUSER and ANONYMOUS_EDIT do not exist there. Editing rights come from
 # Django/CMS permissions.
@@ -246,9 +309,35 @@ THUMBNAIL_PROCESSORS = (
 )
 X_FRAME_OPTIONS = 'SAMEORIGIN'  # the CMS toolbar frames same-origin pages
 
+# filer's private storage defaults to MEDIA_ROOT/../smedia (= /smedia in the container: outside the
+# volumes and not writable by the app user). Keep it inside MEDIA_ROOT, so it is writable, persistent and
+# part of the media backup; __PROJECT_NAME__/urls.py refuses to serve it under /media/.
+# (filer only applies a user value when ENGINE is given too, so the full private entries are spelled out.)
+FILER_STORAGES = {
+    'private': {
+        'main': {
+            'ENGINE': 'filer.storage.PrivateFileSystemStorage',
+            'OPTIONS': {'location': str(MEDIA_ROOT / 'filer_private'), 'base_url': '/smedia/filer_private/'},
+            'UPLOAD_TO': 'filer.utils.generate_filename.randomized',
+            'UPLOAD_TO_PREFIX': '',
+        },
+        'thumbnails': {
+            'ENGINE': 'filer.storage.PrivateFileSystemStorage',
+            'OPTIONS': {'location': str(MEDIA_ROOT / 'filer_private_thumbnails'), 'base_url': '/smedia/filer_private_thumbnails/'},
+            'THUMBNAIL_OPTIONS': {},
+        },
+    },
+}
+
 # djangocms-text sanitises HTML (nh3). Allow id on headings so in-page anchors/TOC links survive.
 TEXT_ADDITIONAL_ATTRIBUTES = {'h2': {'id'}, 'h3': {'id'}}
 
 # Google Maps plugin: without an API key Google overlays an error dialog on the map, so the seed
-# only adds the sample map when GOOGLE_MAPS_API_KEY is set.
+# only adds the sample map when GOOGLE_MAPS_API_KEY is set, and the plugin is not offered to editors
+# at all without a key (excluded_plugins under the global None key, checked in cms/plugin_pool.py).
+# Maps that already exist render a notice (templates/djangocms_googlemap/default/map.html).
 DJANGOCMS_GOOGLEMAP_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', '')
+if not DJANGOCMS_GOOGLEMAP_API_KEY:
+    CMS_PLACEHOLDER_CONF[None] = {
+        'excluded_plugins': ['GoogleMapPlugin', 'GoogleMapMarkerPlugin', 'GoogleMapRoutePlugin'],
+    }

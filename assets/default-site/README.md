@@ -25,10 +25,12 @@ It was built and verified in a scratch project (django-cms 5.1.3, Django 5.2.17)
 | `settings_fragment.py` | `<project>/settings.py` | the complete settings module (or merge sections) |
 | `urls_fragment.py` | `<project>/urls.py` | admindocs, admin, debug toolbar (DEBUG and `DJANGO_DEBUG_TOOLBAR`), cms.urls last |
 | `manage.py` | `manage.py` | standard, points at `__PROJECT_NAME__.settings` |
-| `Dockerfile`, `docker-compose.yml`, `docker/entrypoint.sh`, `bin/docker-*.sh` | same paths | Docker + PostgreSQL stack (omitted by `new-site.py --no-docker`) |
+| `Dockerfile`, `docker-compose.yml`, `docker-compose.dev.yml`, `docker/*.sh`, `bin/docker-*.sh`, `bin/dev-*.sh`, `bin/pin-images.sh`, `bin/pin_images.py` | same paths | Docker + PostgreSQL production stack, standalone dev stack, backup/restore, digest pins (omitted by `new-site.py --no-docker`) |
+| `bin/release.sh` | same path | `vX.Y.Z` release helper (refreshes pins when present, tests, `VERSION`, `CHANGELOG.md`, commit, tag; never pushes) |
+| `templates/djangocms_googlemap/`, `templates/djangocms_video/`, `static/js/googlemap-guard.js` | same paths | keyless-map fail-safe and video fallback link |
 | `dockerignore.template` | `.dockerignore` | build-context excludes (secrets, venv, db, media) |
 | `__PROJECT_NAME__/health.py` | `<project>/health.py` | `/health/` for container healthchecks |
-| `requirements.txt` | `requirements.txt` | pinned, verified set |
+| `requirements.txt`, `requirements-dev.txt` | same paths | pinned production set; dev adds `django-debug-toolbar` (`-r requirements.txt`) |
 | `env.example.template`, `gitignore.template` | `.env.example`, `.gitignore` | environment variables; ignore rules |
 
 `wsgi.py`, `asgi.py` and `__init__.py` for the project package are the unmodified `django-admin startproject` output (`WSGI_APPLICATION` refers to `wsgi.py`); the scaffold must create them.
@@ -38,7 +40,7 @@ this repo; they are plain Python and compile as-is.
 
 ## Running the result
 
-    pip install -r requirements.txt
+    pip install -r requirements-dev.txt   # requirements.txt alone = production
     python manage.py migrate
     python manage.py createsuperuser
     DJANGO_DEBUG=1 python manage.py seed_pages     # Home (landing template), set as homepage
@@ -55,8 +57,12 @@ this repo; they are plain Python and compile as-is.
 
 Compose project `__PROJECT_NAME__`: `db` (postgres:16-alpine, no host port) and `app` (gunicorn, WhiteNoise,
 DEBUG and the debug toolbar off, non-root) on `127.0.0.1:${APP_PORT:-8889}`. `DB_ENGINE=postgres` selects
-PostgreSQL; unset keeps SQLite so `runserver` and `bin/verify.sh` are unchanged. `SEED_ON_START=1` runs
-`manage.py seed` at start. Admin login needs the browsed origin in `DJANGO_CSRF_TRUSTED_ORIGINS` (the compose
+PostgreSQL; unset keeps SQLite so `runserver` and `bin/verify.sh` are unchanged. With PostgreSQL the default cache
+is a shared database table (all gunicorn workers see a publish at once; `DJANGO_CACHE=locmem|db`). `SEED_ON_START=1` runs
+`manage.py seed --first-run-only` at start (a fresh database only; editors' emptied placeholders are not refilled).
+`bin/dev-up.sh` starts the separate dev stack (`<project>-dev`, 127.0.0.1:8880). `bin/docker-backup.sh` and
+`bin/docker-restore.sh` back up and restore database and media. Images are pinned by digest (`bin/pin-images.sh`,
+refreshed by `bin/release.sh`); behind a TLS proxy `DJANGO_BEHIND_PROXY=1` makes the cookies Secure. Admin login needs the browsed origin in `DJANGO_CSRF_TRUSTED_ORIGINS` (the compose
 default follows `APP_PORT` for localhost). `DJANGO_SERVE_MEDIA=1` serves uploads from Django when DEBUG is off.
 The generated README documents backup, restore, reset and proxy use; `references/project-setup.md` in the skill
 explains each setting.
@@ -76,6 +82,8 @@ middleware and the `/__debug__/` url are all dropped together (`USE_DEBUG_TOOLBA
 - Idempotent: pages are looked up by `PageUrl(slug, language)`, never by title; placeholders are only
   filled when empty.
 - Atomic: each page's create / plugin / homepage work is one `transaction.atomic()`.
+- Published content is never edited in place: `editable_content()` makes a draft copy, the seed fills it,
+  `publish()` publishes once (a second run adds no versions). `seed --first-run-only` skips a seeded site.
 - Versioning: `create_page` makes a DRAFT, so `starter/seeding.py` works through
   `PageContent.admin_manager` (the default manager only sees published content) and publishes with a
   real user object (`get_user()`; the string `"python-api"` cannot publish, so an inactive system user
@@ -99,6 +107,7 @@ with `CMS_PLACEHOLDER_CONF[...]['plugins']` allow-lists or Django permissions if
   packages; fixing it would mean editing site-packages. `makemigrations --check starter` is clean.
 - Plugins created through `add_plugin` get no default CSS classes (only the admin form adds them), so
   `seed_site` passes explicit `attributes` classes.
-- Google Map needs `GOOGLE_MAPS_API_KEY` (and internet); the seed adds the sample map only when it is set.
+- Google Map needs `GOOGLE_MAPS_API_KEY` (and internet); the seed adds the sample map only when it is set, and
+  without a key the map plugins are not offered to editors (an existing map shows a notice).
 - Video embeds need internet access to show their player.
 - `references/plugins.md` lists which plugin packages work and which fail on this stack.

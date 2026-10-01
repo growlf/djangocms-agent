@@ -10,3 +10,4 @@ staticfiles/
 .vscode/
 .DS_Store
 verify-shots/
+backups/

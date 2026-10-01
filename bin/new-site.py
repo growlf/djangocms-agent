@@ -12,8 +12,11 @@ and otherwise exits with code 2: an agent must ask the person, never invent them
 What it does, in order: validate -> create <parent-dir>/<slug>/ -> write the default site (assets/default-site
 with __PROJECT_NAME__ / __SITE_NAME__ substituted in contents and paths), the project package files
 (__init__, wsgi, asgi), FOSS files, AGENTS.md + CLAUDE.md, README, .opskit/pack.yml, scripts/visual_check.py,
-bin/verify.sh, plus the Docker + PostgreSQL files (Dockerfile, docker-compose.yml, docker/entrypoint.sh,
-.dockerignore, bin/docker-{up,down,env}.sh) unless --no-docker -> venv + pip install -> migrate -> admin superuser (random password, printed once, never
+bin/verify.sh, CHANGELOG.md and bin/release.sh, plus the Docker + PostgreSQL files unless --no-docker
+(Dockerfile with `dev` and `production` stages, docker-compose.yml, docker-compose.dev.yml,
+docker/{entrypoint,dev-entrypoint}.sh, .dockerignore, bin/docker-{up,down,env,backup,restore}.sh,
+bin/dev-{up,down}.sh, bin/pin-images.sh + pin_images.py: images pinned by digest) -> venv + pip install
+-r requirements-dev.txt -> migrate -> admin superuser (random password, printed once, never
 stored) -> seed_pages + seed_site -> git init + first commit.  It never overwrites an existing file and
 refuses a non-empty target directory.  It never calls any `opskit` command: OpsKit integration is only the
 manifest file.
@@ -69,8 +72,10 @@ SPECIAL = {"README.md", "settings_fragment.py", "urls_fragment.py", "gitignore.t
            "dockerignore.template"}
 # Docker support files, relative to default-site (dockerignore.template is written as .dockerignore).
 # Omitted by --no-docker. The requirements (gunicorn, psycopg, whitenoise) and settings stay either way.
-DOCKER_FILES = {"Dockerfile", "docker-compose.yml", "docker/entrypoint.sh", "bin/docker-up.sh",
-                "bin/docker-down.sh", "bin/docker-env.sh"}
+DOCKER_FILES = {"Dockerfile", "docker-compose.yml", "docker-compose.dev.yml", "docker/entrypoint.sh",
+                "docker/dev-entrypoint.sh", "bin/docker-up.sh", "bin/docker-down.sh", "bin/docker-env.sh",
+                "bin/docker-backup.sh", "bin/docker-restore.sh", "bin/dev-up.sh", "bin/dev-down.sh",
+                "bin/pin-images.sh", "bin/pin_images.py", "starter/tests_pins.py"}
 DOCKER_PORT = 8889  # default host port of the Docker stack (APP_PORT overrides it)
 
 
@@ -238,6 +243,7 @@ def build_plan(ctx):
     plan.add("LICENSE", "text", render(lic.read_text(encoding="utf-8"), v))
     for name in ("CODE_OF_CONDUCT.md", "CONTRIBUTING.md", "SECURITY.md", "AGENTS.md", "CLAUDE.md", "README.md"):
         plan.add(name, "text", render((FOSS / f"{name}.tmpl").read_text(encoding="utf-8"), v))
+    plan.add("CHANGELOG.md", "text", render((FOSS / "CHANGELOG.md.tmpl").read_text(encoding="utf-8"), v))
     plan.add(".github/PULL_REQUEST_TEMPLATE.md", "text",
              (FOSS / "github/PULL_REQUEST_TEMPLATE.md").read_text(encoding="utf-8"))
     for issue in sorted((FOSS / "github/ISSUE_TEMPLATE").glob("*.yml")):
@@ -353,8 +359,9 @@ def build_project(ctx, target):
         print("== virtualenv and dependencies (this downloads packages)")
         run([sys.executable, "-m", "venv", "venv"], target, step="create venv")
         vpy = str(target / "venv" / "bin" / "python")
-        run([vpy, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", "-r", "requirements.txt"],
-            target, step="pip install -r requirements.txt")
+        # The local venv is a development environment: requirements-dev.txt = requirements.txt + debug toolbar.
+        run([vpy, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", "-r", "requirements-dev.txt"],
+            target, step="pip install -r requirements-dev.txt")
         env = {**os.environ, "DJANGO_DEBUG": "1", "DJANGO_SECRET_KEY": secrets.token_urlsafe(32)}
         manage = [vpy, "manage.py"]
         print("== database, admin user, seed content")
@@ -384,7 +391,7 @@ def print_plan(plan, target, ctx):
         print(f"  write {rel}")
     print(f"  write {vendor} vendored static file(s) under static/vendor/")
     if ctx["install"]:
-        print("  then: venv + pip install -r requirements.txt, migrate, admin superuser (random password), "
+        print("  then: venv + pip install -r requirements-dev.txt, migrate, admin superuser (random password), "
               "seed (seed_pages + seed_site)")
     else:
         print("  then: (venv, install, migrate and seed skipped by --no-venv/--skip-install)")
@@ -467,8 +474,9 @@ def build_parser():
                    help="write files and git init only: no venv, pip install, migrate or seed")
     p.add_argument("--no-opskit", action="store_true", help="do not write .opskit/pack.yml")
     p.add_argument("--no-docker", action="store_true",
-                   help="omit the Dockerfile, docker-compose.yml, docker/entrypoint.sh, .dockerignore and "
-                        "bin/docker-*.sh (included by default; requirements and settings are unchanged)")
+                   help="omit the Dockerfile, both compose files, docker/*.sh, .dockerignore, bin/docker-*.sh, "
+                        "bin/dev-*.sh and the image-pin tooling (included by default; requirements, "
+                        "requirements-dev.txt, settings, bin/release.sh and CHANGELOG.md are kept)")
     p.add_argument("--dry-run", action="store_true", help="print the file plan; touch nothing")
     p.add_argument("--require-playwright", action="store_true",
                    help="exit 2 before creating anything if Playwright/chromium is not ready for verification "
@@ -528,10 +536,14 @@ def make_context(args):
         for key, fname in (("DOCKER_README", "docker-readme.md.tmpl"), ("DOCKER_AGENTS", "docker-agents.md.tmpl")):
             variables[key] = render((FOSS / fname).read_text(encoding="utf-8"), variables)
         variables["DB_STACK"] = "SQLite for local development, PostgreSQL in Docker (`DB_ENGINE=postgres`)"
-        variables["DOCKER_LAYOUT"] = ("- `Dockerfile`, `docker-compose.yml`, `docker/entrypoint.sh`, `bin/docker-*.sh` - "
-                                      f"container stack; `{package}/health.py` - `/health/`\n")
+        variables["DOCKER_CONTRIBUTING"] = render(
+            (FOSS / "docker-contributing.md.tmpl").read_text(encoding="utf-8"), variables)
+        variables["DOCKER_LAYOUT"] = ("- `Dockerfile` (stages `dev`, `production`), `docker-compose.yml`, `docker-compose.dev.yml`, "
+                                      "`docker/*.sh`, `bin/docker-*.sh`, `bin/dev-*.sh`, `bin/pin-images.sh` - "
+                                      f"container stacks and image pins; `{package}/health.py` - `/health/`\n")
     else:
-        variables.update(DOCKER_README="", DOCKER_AGENTS="", DB_STACK="SQLite for development", DOCKER_LAYOUT="")
+        variables.update(DOCKER_README="", DOCKER_AGENTS="", DOCKER_CONTRIBUTING="", DB_STACK="SQLite for development",
+                         DOCKER_LAYOUT="")
     return {
         "name": name, "slug": slug, "package": package, "purpose": purpose, "site_name": site_name,
         "license": args.license, "author": author, "vars": variables,
@@ -622,6 +634,8 @@ def main(argv=None):
         print("  # Docker + PostgreSQL (needs docker compose); app on http://localhost:<APP_PORT>/, default "
               f"{DOCKER_PORT}:")
         print("  bin/docker-up.sh                   # creates .env with random secrets, builds, starts, waits healthy")
+        print("  bin/dev-up.sh                      # separate dev stack (debug toolbar, source bind-mounted) on "
+              "127.0.0.1:8880")
         print(f"  APP_PORT=<port> bin/docker-up.sh   # another host port (default {DOCKER_PORT}); the CSRF origins follow "
               "APP_PORT for localhost;")
         print("                                     # set DJANGO_CSRF_TRUSTED_ORIGINS for any other host name or proxy")

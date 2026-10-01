@@ -2,7 +2,7 @@ name: __PROJECT_NAME__
 
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME:-__PROJECT_NAME__}
@@ -19,7 +19,12 @@ services:
       start_period: 5s
 
   app:
-    build: .
+    # Production image (Dockerfile target "production": gunicorn, no dev packages). Tag convention: the
+    # release script/CI builds __PROJECT_NAME__:vX.Y.Z (APP_VERSION=X.Y.Z); a plain local build is __PROJECT_NAME__:latest.
+    image: ${APP_IMAGE:-__PROJECT_NAME__}:${APP_VERSION:-latest}
+    build:
+      context: .
+      target: production
     restart: unless-stopped
     depends_on:
       db:
@@ -41,6 +46,12 @@ services:
       DB_NAME: ${DB_NAME:-__PROJECT_NAME__}
       DB_USER: ${DB_USER:-__PROJECT_NAME__}
       DB_PASSWORD: ${DB_PASSWORD:?run bin/docker-env.sh to create .env}
+      DJANGO_CACHE: ${DJANGO_CACHE:-}
+      DJANGO_HSTS_SECONDS: ${DJANGO_HSTS_SECONDS:-0}
+      DJANGO_HSTS_INCLUDE_SUBDOMAINS: ${DJANGO_HSTS_INCLUDE_SUBDOMAINS:-0}
+      DJANGO_SSL_REDIRECT: ${DJANGO_SSL_REDIRECT:-0}
+      CREATE_VERSIONS: ${CREATE_VERSIONS:-0}
+      CREATE_VERSIONS_USER: ${CREATE_VERSIONS_USER:-}
       SEED_ON_START: ${SEED_ON_START:-0}
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
     ports:

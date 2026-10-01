@@ -20,7 +20,7 @@ Scaffolded by the `djangocms-agent` skill (`bin/new-site.py`); load that skill f
 
 ## Setup commands
 
-    python3 -m venv venv && venv/bin/pip install -r requirements.txt
+    python3 -m venv venv && venv/bin/pip install -r requirements-dev.txt   # requirements.txt = production only
     export DJANGO_DEBUG=1 DJANGO_SECRET_KEY=dev
     venv/bin/python manage.py migrate
     venv/bin/python manage.py seed_pages && venv/bin/python manage.py seed_site
@@ -50,7 +50,9 @@ Take screenshots before and after any change that affects rendering
 
 ## CMS rules
 
-- Seed commands are idempotent and publish through djangocms-versioning; keep them that way.
+- Seed commands are idempotent and publish through djangocms-versioning; keep them that way. Published content is
+  never edited in place: create a draft (`starter.seeding.editable_content`), fill it, publish once. Key pages on
+  `PageUrl(slug, language)`, not on titles.
 - Never invent django-cms settings: grep the installed `cms/utils/conf.py` first.
 - The `starter.HtmlBlock` plugin renders raw HTML; it is for trusted editors only.
 

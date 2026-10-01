@@ -1,0 +1,24 @@
+{% load i18n cms_tags %}{% comment %}
+  Project override of djangocms_video/default/video_player.html: same markup, plus a text link under
+  an embedded video, so the page still offers the video when the frame stays blank (offline, blocked,
+  or a watch URL instead of an /embed/ URL).
+{% endcomment %}
+<div class="djangocms-video-plugin">
+    {% if instance.embed_link %}
+        <iframe src="{{ instance.embed_link_with_parameters }}" {{ instance.attributes_str }} frameborder="0" allowfullscreen="true"></iframe>
+        <p class="site-video-fallback"><a href="{{ instance.embed_link }}" target="_blank" rel="noopener noreferrer">{% if instance.label %}{{ instance.label }}{% else %}{% trans "Open the video" %}{% endif %} ({% trans "opens in a new tab" %})</a></p>
+        {% with disabled=instance.embed_link %}
+            {% for plugin in instance.child_plugin_instances %}
+                {% render_plugin plugin %}
+            {% endfor %}
+        {% endwith %}
+    {% else %}
+        <video controls {{ instance.attributes_str }}
+            {% if instance.poster %} poster="{{ instance.poster.url }}"{% endif %}>
+            {% for plugin in instance.child_plugin_instances %}
+                {% render_plugin plugin %}
+            {% endfor %}
+            {% trans "Your browser doesn't support this video format." %}
+        </video>
+    {% endif %}
+</div>

@@ -287,7 +287,7 @@ def test_preflight_reports_missing_chromium(tmp_path, monkeypatch):
 SITE_SRC = REPO / "assets" / "default-site"
 
 
-def load_settings_and_urls(tmp_path, monkeypatch, debug, toolbar):
+def load_settings_and_urls(tmp_path, monkeypatch, debug, toolbar, toolbar_installed=True):
     """Import the settings fragment (plain Python) and evaluate the urls fragment against it, with
     stubs for django.conf/urls so no database or installed CMS is needed."""
     import types
@@ -298,6 +298,12 @@ def load_settings_and_urls(tmp_path, monkeypatch, debug, toolbar):
     if toolbar is not None:
         monkeypatch.setenv("DJANGO_DEBUG_TOOLBAR", toolbar)
     monkeypatch.setenv("DJANGO_SECRET_KEY", "x")
+    # The settings only enable the toolbar when the package is importable (it is a dev-only requirement).
+    import importlib.util
+    real_find_spec = importlib.util.find_spec
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name, *a, **k: (
+        object() if name == "debug_toolbar" and toolbar_installed else
+        None if name == "debug_toolbar" else real_find_spec(name, *a, **k)))
     monkeypatch.syspath_prepend(str(SITE_SRC))
     sys.modules.pop("starter", None)
     sys.modules.pop("starter.constants", None)
@@ -360,6 +366,12 @@ def test_debug_toolbar_switch_is_consistent(tmp_path, monkeypatch, debug, toolba
         assert not hasattr(mod, "INTERNAL_IPS")
 
 
+def test_debug_toolbar_needs_the_dev_package(tmp_path, monkeypatch):
+    """DEBUG without django-debug-toolbar installed (production requirements only) must not enable it."""
+    mod = load_settings_and_urls(tmp_path, monkeypatch, "1", None, toolbar_installed=False)
+    assert toolbar_state(mod) == (False, False, False)
+
+
 # ---- verify.sh content ---------------------------------------------------------------------
 
 def test_verify_sh_disables_toolbar_and_prints_coverage(tmp_path):
@@ -390,9 +402,18 @@ def test_overflow_claim_matches_script():
 
 # ---- Docker + PostgreSQL support ------------------------------------------------------------
 
-DOCKER_FILES = ["Dockerfile", "docker-compose.yml", "docker/entrypoint.sh", ".dockerignore",
-                "bin/docker-up.sh", "bin/docker-down.sh", "bin/docker-env.sh"]
-SHELL_SCRIPTS = ["docker/entrypoint.sh", "bin/docker-up.sh", "bin/docker-down.sh", "bin/docker-env.sh"]
+DOCKER_FILES = ["Dockerfile", "docker-compose.yml", "docker-compose.dev.yml", "docker/entrypoint.sh",
+                "docker/dev-entrypoint.sh", ".dockerignore", "bin/docker-up.sh", "bin/docker-down.sh",
+                "bin/docker-env.sh", "bin/docker-backup.sh", "bin/docker-restore.sh", "bin/dev-up.sh",
+                "bin/dev-down.sh", "bin/pin-images.sh", "bin/pin_images.py", "starter/tests_pins.py"]
+SHELL_SCRIPTS = ["docker/entrypoint.sh", "docker/dev-entrypoint.sh", "bin/docker-up.sh", "bin/docker-down.sh",
+                 "bin/docker-env.sh", "bin/docker-backup.sh", "bin/docker-restore.sh", "bin/dev-up.sh",
+                 "bin/dev-down.sh", "bin/pin-images.sh", "bin/release.sh"]
+# Kept by --no-docker: the settings, requirements-dev.txt (debug toolbar for the local venv), the release script,
+# the changelog and the map/video templates are not container files.
+ALWAYS_FILES = ["requirements.txt", "requirements-dev.txt", "bin/release.sh", "CHANGELOG.md", "bin/verify.sh",
+                "static/js/googlemap-guard.js", "templates/djangocms_googlemap/default/map.html",
+                "templates/djangocms_video/default/video_player.html", "starter/tests_release.py"]
 
 
 def test_docker_files_in_plan_and_on_disk_by_default(tmp_path):
@@ -425,6 +446,8 @@ def test_no_docker_omits_docker_files_but_keeps_settings(tmp_path):
     plan = cli("--name", "Other Site", "--purpose", "x", "--parent-dir", str(tmp_path), "--dry-run",
                "--no-docker")
     assert "docker=no" in plan.stdout and "Dockerfile" not in plan.stdout
+    for rel in DOCKER_FILES:
+        assert f"write {rel}" not in plan.stdout, rel
 
 
 def test_docker_docs_in_generated_readme_and_agents(tmp_path):
@@ -442,6 +465,123 @@ def test_shell_scripts_executable_and_parse(tmp_path):
     for rel in SHELL_SCRIPTS + ["bin/verify.sh"]:
         assert os.access(root / rel, os.X_OK), rel
         subprocess.run(["bash", "-n", str(root / rel)], check=True)
+    assert os.access(root / "bin/pin_images.py", os.X_OK)
+    # the committed tree keeps the executable bits (a fresh clone must still run the scripts)
+    modes = subprocess.run(["git", "-C", str(root), "ls-files", "-s", *SHELL_SCRIPTS], capture_output=True, text=True).stdout
+    assert modes.count("100755") == len(SHELL_SCRIPTS), modes
+
+
+def test_hardening_files_ship_by_default_and_are_listed_in_the_plan(tmp_path):
+    plan = cli("--name", "Acme Garden Club", "--purpose", "x", "--parent-dir", str(tmp_path), "--dry-run")
+    for rel in DOCKER_FILES + ALWAYS_FILES:
+        assert f"write {rel}" in plan.stdout, rel
+    root = scaffold(tmp_path)
+    files = set(tree(root))
+    for rel in DOCKER_FILES + ALWAYS_FILES + [".env.example"]:
+        assert rel in files, rel
+
+
+def test_no_docker_keeps_non_container_hardening_files(tmp_path):
+    root = scaffold(tmp_path, "--no-docker")
+    files = set(tree(root))
+    for rel in ALWAYS_FILES:
+        assert rel in files, rel
+    for rel in DOCKER_FILES:
+        assert rel not in files, rel
+    for rel in ("bin/release.sh", "bin/verify.sh"):
+        subprocess.run(["bash", "-n", str(root / rel)], check=True)
+    assert "{{" not in (root / "CONTRIBUTING.md").read_text()
+
+
+def test_requirements_split_and_dockerfile_stages(tmp_path):
+    root = scaffold(tmp_path)
+    assert "debug-toolbar" not in (root / "requirements.txt").read_text()
+    dev = (root / "requirements-dev.txt").read_text()
+    assert "-r requirements.txt" in dev and "django-debug-toolbar==" in dev
+    assert "docutils==" in (root / "requirements.txt").read_text()  # /admin/docs/ is enabled
+    docker = (root / "Dockerfile").read_text()
+    stages = re.findall(r"^FROM .* AS (\w+)$", docker, re.M)
+    assert stages == ["base", "dev", "production"]
+
+
+def test_dev_compose_is_standalone_loopback_only_and_prod_has_no_dev_settings(tmp_path):
+    root = scaffold(tmp_path)
+    dev = (root / "docker-compose.dev.yml").read_text()
+    prod = (root / "docker-compose.yml").read_text()
+    assert "name: acme_garden_club-dev" in dev and "${DEV_PORT:-8880}" in dev
+    assert "target: dev" in dev and ".:/app" in dev and "runserver" in (root / "docker/dev-entrypoint.sh").read_text()
+    for port in re.findall(r'^\s*-\s*"([^"]*:\d+:\d+)"', dev, re.M):
+        assert port.startswith("127.0.0.1:"), port
+    assert "image: ${APP_IMAGE:-acme_garden_club}:${APP_VERSION:-latest}" in prod
+    assert "target: production" in prod and "DJANGO_DEBUG: \"1\"" not in prod and "- .:/app" not in prod
+    assert "dev-only-password" not in prod
+
+
+def test_images_in_generated_files_are_pinned_by_digest(tmp_path):
+    root = scaffold(tmp_path)
+    for rel in ("Dockerfile", "docker-compose.yml", "docker-compose.dev.yml"):
+        for line in (root / rel).read_text().splitlines():
+            m = re.match(r"^\s*(?:FROM\s+(\S+)|image:\s*(\S+))", line)
+            ref = (m.group(1) or m.group(2)) if m else None
+            if ref and "$" not in ref and ref not in ("base",):
+                assert re.search(r"@sha256:[0-9a-f]{64}$", ref), f"{rel}: {ref}"
+                assert re.search(r":[\w.-]+@sha256", ref), f"{rel}: tag must stay readable: {ref}"
+
+
+def test_settings_fragment_hardening_switches():
+    s = (SITE_SRC / "settings_fragment.py").read_text()
+    for needle in ("DJANGO_CACHE", "DatabaseCache", "django_cache", "DJANGO_CMS_CACHE", "SESSION_COOKIE_SECURE",
+                   "CSRF_COOKIE_SECURE", "LANGUAGE_COOKIE_SECURE", "DJANGO_HSTS_SECONDS", "DJANGO_HSTS_INCLUDE_SUBDOMAINS",
+                   "DJANGO_SSL_REDIRECT", "SECURE_REDIRECT_EXEMPT", "FILER_STORAGES", "PrivateFileSystemStorage",
+                   "excluded_plugins", "GoogleMapPlugin", "'127.0.0.1'"):
+        assert needle in s, needle
+    assert "filer_private" in (SITE_SRC / "urls_fragment.py").read_text()
+
+
+def test_dropdown_toggle_is_a_button():
+    menu = (SITE_SRC / "templates" / "menu" / "menu.html").read_text()
+    assert '<button type="button" class="nav-link dropdown-toggle' in menu
+    assert 'role="button"' not in menu
+
+
+def test_generated_docs_cover_the_hardening_topics(tmp_path):
+    root = scaffold(tmp_path)
+    readme = (root / "README.md").read_text()
+    for needle in ("bin/docker-backup.sh", "bin/docker-restore.sh", "--wipe", "ON_ERROR_STOP", "bin/dev-up.sh", "8880",
+                   "bin/pin-images.sh", "bin/release.sh", "APP_BIND=0.0.0.0", "DJANGO_CACHE", "--first-run-only",
+                   "CREATE_VERSIONS", "requirements-dev.txt"):
+        assert needle in readme, needle
+    contributing = (root / "CONTRIBUTING.md").read_text()
+    assert "refreshed with every `vX.Y.Z` release" in contributing and "{{" not in contributing
+    assert "refreshed with each `vX.Y.Z` release" in (root / "AGENTS.md").read_text()
+    env = (root / ".env.example").read_text()
+    for needle in ("DJANGO_ALLOWED_HOSTS=example.org,localhost,127.0.0.1", "CREATE_VERSIONS_USER", "DJANGO_CACHE",
+                   "DJANGO_HSTS_SECONDS", "DEV_PORT", "APP_VERSION", "SEED_ON_START"):
+        assert needle in env, needle
+
+
+def test_verify_sh_cd_has_exit_guard(tmp_path):
+    text = (scaffold(tmp_path) / "bin" / "verify.sh").read_text()
+    assert 'cd "$(dirname "$0")/.." || exit 1' in text
+
+
+def test_release_script_dry_run_and_real_run_in_a_scaffold(tmp_path):
+    """The generated bin/release.sh works in a freshly scaffolded git repo (checks and pins stubbed)."""
+    root = scaffold(tmp_path)
+    env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull,
+           "RELEASE_PIN_CMD": "true", "RELEASE_TEST_CMD": "true",
+           "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.com",
+           "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.com"}
+    dry = subprocess.run(["bash", "bin/release.sh", "v0.1.0", "--dry-run"], cwd=root, env=env, capture_output=True, text=True)
+    assert dry.returncode == 0, dry.stdout + dry.stderr
+    assert not (root / "VERSION").exists()
+    real = subprocess.run(["bash", "bin/release.sh", "v0.1.0"], cwd=root, env=env, capture_output=True, text=True)
+    assert real.returncode == 0, real.stdout + real.stderr
+    assert (root / "VERSION").read_text() == "0.1.0\n"
+    assert "## [0.1.0] -" in (root / "CHANGELOG.md").read_text()
+    assert "git push origin v0.1.0" in real.stdout
+    tags = subprocess.run(["git", "-C", str(root), "tag"], capture_output=True, text=True).stdout
+    assert tags.split() == ["v0.1.0"]
 
 
 def test_docker_env_script_makes_private_env_and_never_overwrites(tmp_path):
@@ -467,6 +607,19 @@ def test_compose_file_is_valid(tmp_path):
     assert proc.returncode == 0, proc.stderr
     assert "http://localhost:8891" in proc.stdout  # CSRF default follows APP_PORT
     assert "postgres:16-alpine" in proc.stdout
+
+
+@pytest.mark.skipif(__import__("shutil").which("docker") is None, reason="docker not installed")
+def test_dev_compose_file_is_valid(tmp_path):
+    root = scaffold(tmp_path)
+    env = {**os.environ, "DEV_PORT": "8898"}
+    proc = subprocess.run(["docker", "compose", "-f", "docker-compose.dev.yml", "config"], cwd=root, env=env,
+                          capture_output=True, text=True)
+    if proc.returncode != 0 and "not a docker command" in proc.stderr:
+        pytest.skip("docker compose plugin not installed")
+    assert proc.returncode == 0, proc.stderr
+    assert "name: acme_garden_club-dev" in proc.stdout
+    assert "127.0.0.1" in proc.stdout and "8898" in proc.stdout
 
 
 def test_requirements_pin_docker_dependencies():
@@ -543,10 +696,16 @@ def test_non_tty_missing_args_still_usage_error(monkeypatch):
 
 
 def test_container_file_tests_skip_without_docker_files():
-    """A --no-docker site still ships starter/tests_docker.py (the behaviour tests apply either way), so the
-    container-file checks must skip themselves when the Dockerfile is absent (found: verify.sh ended FAIL)."""
-    repo = Path(__file__).resolve().parent.parent
-    text = (repo / "assets" / "default-site" / "starter" / "tests_docker.py").read_text()
-    head, _, _ = text.partition("class ContainerFilesTests")
-    assert "skipUnless((BASE / 'Dockerfile').exists()" in head.splitlines()[-2] or "skipUnless((BASE / 'Dockerfile').exists()" in head[-300:], \
-        "ContainerFilesTests must skip when the Dockerfile is absent"
+    """A --no-docker site still ships starter/tests_docker.py and tests_release.py (the behaviour tests apply
+    either way), so every class that reads container files must skip itself when the Dockerfile is absent
+    (found: verify.sh ended FAIL)."""
+    site = REPO / "assets" / "default-site" / "starter"
+    for fname in ("tests_docker.py", "tests_release.py"):
+        text = (site / fname).read_text()
+        assert "docker_only = unittest.skipUnless((BASE / " in text.replace('"Dockerfile"', "'Dockerfile'") or \
+            "docker_only = unittest.skipUnless((BASE / \"Dockerfile\")" in text, fname
+    text = (site / "tests_docker.py").read_text()
+    for cls in ("ContainerFilesTests", "ComposeWiringTests", "DockerEnvScriptTests"):
+        assert f"@docker_only\nclass {cls}" in text, cls
+    assert "@docker_only\nclass ComposeSplitTests" in (site / "tests_release.py").read_text()
+    assert "SkipTest" in (site / "tests_pins.py").read_text()  # whole module skips without bin/pin_images.py

@@ -70,7 +70,7 @@ python3 bin/new-site.py --name "Acme Garden Club" \
 | `--author` | Copyright holder (default: git `user.name`, else "The <site> contributors") |
 | `--no-venv` / `--skip-install` | Only write files and `git init`: no venv, pip, migrate, seed |
 | `--no-opskit` | Do not write `.opskit/pack.yml` |
-| `--no-docker` | Omit the Docker files (Dockerfile, `docker-compose.yml`, `docker/entrypoint.sh`, `.dockerignore`, `bin/docker-*.sh`) and the Docker sections of README/AGENTS.md. Included by default. Settings, `/health/` and the pinned requirements stay either way |
+| `--no-docker` | Omit the container files (Dockerfile, both compose files, `docker/*.sh`, `.dockerignore`, `bin/docker-*.sh`, `bin/dev-*.sh`, `bin/pin-images.sh`, `bin/pin_images.py`) and the Docker sections of README/AGENTS.md/CONTRIBUTING.md. Included by default. Settings, `/health/`, `requirements*.txt`, `bin/release.sh`, `CHANGELOG.md` and the map/video templates stay either way, and the site still passes its own tests and `bin/verify.sh` (container-file tests skip themselves) |
 | `--dry-run` | Print the file plan, touch nothing |
 | `--require-playwright` | Exit 2 before creating anything when Playwright or chromium is not ready (default: print a notice and continue) |
 | `--yes` | Skip the confirmation asked after interactive prompts (each prompt re-asks until the answer is valid) |
@@ -91,23 +91,47 @@ and is not empty, or `--require-playwright` with Playwright not ready). It never
   `opskit` command. Do not run `opskit member sync-mount` / `opskit init <path>` to "finish" the
   integration; they have a known prune bug that deletes native agents and skills.
 - `scripts/visual_check.py` (copy) and `bin/verify.sh`.
-- **Docker + PostgreSQL (default; `--no-docker` omits the files):** `Dockerfile` (python:3.12-slim, non-root
-  uid 1000), `docker-compose.yml` (`db` = postgres:16-alpine with no published port, `app` = gunicorn, named
-  volumes for database/media/static, healthchecks), `docker/entrypoint.sh` (wait for DB, migrate,
-  collectstatic, optional `SEED_ON_START=1` seed, `gunicorn --no-control-socket`), `.dockerignore`,
-  `bin/docker-env.sh` (writes a mode-600 `.env` with random secrets, never overwrites), `bin/docker-up.sh`
-  (build, start, wait until healthy, print URL), `bin/docker-down.sh` (keeps volumes unless `--volumes`).
-  The settings themselves are Docker-ready in every site: DB chosen by `DB_ENGINE` (unset = SQLite, so
-  `verify.sh` and `runserver` are unchanged), WhiteNoise, `/health/`, `DJANGO_SERVE_MEDIA`, CSRF/proxy env.
-  A single `manage.py seed` runs `seed_pages` then `seed_site` (idempotent); `seed_pages`/`seed_site` still work.
-  **Default port:** the app is published on `127.0.0.1:${APP_PORT:-8889}`; pick another with
-  `APP_PORT=8891 bin/docker-up.sh` (or `APP_PORT` in `.env`). Add `-p <name>` to run a second copy
-  (`bin/docker-up.sh -p other`; the same `-p` goes to `bin/docker-down.sh`). **CSRF origin note:** admin login
-  fails with a 403 unless the browsed origin is trusted. The compose default follows `APP_PORT` for
-  `localhost` and `127.0.0.1`; for any other host name or a TLS proxy set `DJANGO_CSRF_TRUSTED_ORIGINS`
-  (scheme and port) and `DJANGO_ALLOWED_HOSTS`, and `DJANGO_BEHIND_PROXY=1` when the proxy sends
-  `X-Forwarded-Proto`. Create the admin user inside the stack: `docker compose exec app python manage.py
-  createsuperuser`. The scaffolder never runs Docker; the Docker run is a separate step the user (or you) starts.
+- **Docker + PostgreSQL (default; `--no-docker` omits the files):**
+  - `Dockerfile` with stages `base`, `dev` and `production` (the last, so a plain `docker build` makes the
+    production image: gunicorn, non-root uid 1000, **no debug toolbar**); the base image is pinned by digest.
+  - `docker-compose.yml` (`db` = postgres:16-alpine pinned by digest with no published port, `app` = the production
+    image `${APP_IMAGE:-<project>}:${APP_VERSION:-latest}`, named volumes, healthchecks, `CREATE_VERSIONS`,
+    `DJANGO_CACHE`, HSTS/SSL-redirect pass-through) and `docker/entrypoint.sh` (wait for DB, migrate,
+    `createcachetable`, collectstatic, optional `CREATE_VERSIONS=1` repair, optional `SEED_ON_START=1` that runs
+    `manage.py seed --first-run-only` so a restart never refills placeholders editors emptied,
+    `gunicorn --no-control-socket`).
+  - `bin/docker-env.sh` (generates both secrets first with python3 or an openssl fallback, writes nothing on
+    failure, temp file then `mv`, mode 600, never overwrites), `bin/docker-up.sh`, `bin/docker-down.sh` (keeps
+    volumes unless `--volumes`), `bin/docker-backup.sh` and `bin/docker-restore.sh` (`db.sql` + `media.tar.gz`; backup
+    refuses an existing directory, restore refuses a non-empty database and only runs `down -v` with `--wipe`,
+    and starts only `db`, restores with `ON_ERROR_STOP=1`, then starts the app).
+  - **Dev stack:** standalone `docker-compose.dev.yml` (project `<project>-dev`, default `127.0.0.1:8880` via
+    `DEV_PORT`, source bind-mounted, runserver autoreload, PostgreSQL, its own `dev_` volumes, debug toolbar), `docker/dev-entrypoint.sh`,
+    `bin/dev-up.sh`, `bin/dev-down.sh` (never `-v` unless `--volumes`).
+  - **Pins and releases:** `bin/pin-images.sh` (`--check`, `--dry-run`, write mode needs a clean git tree; registry HTTP API only,
+    no Docker daemon) over `bin/pin_images.py`; `bin/release.sh vX.Y.Z` (semver, clean tree, on `main` unless
+    `--force-branch`, newer than the latest tag; refreshes pins, runs check/migrations/tests, writes `VERSION`
+    and moves `CHANGELOG.md` `[Unreleased]`, commits and tags; PRINTS the push commands, never pushes; `--dry-run`).
+    The generated CONTRIBUTING.md and AGENTS.md state that pins are refreshed with each `vX.Y.Z` release.
+  - The settings themselves are Docker-ready in every site: DB chosen by `DB_ENGINE` (unset = SQLite, so
+    `verify.sh` and `runserver` are unchanged), shared DB cache with PostgreSQL, WhiteNoise, `/health/`,
+    `DJANGO_SERVE_MEDIA`, CSRF/proxy env, Secure cookies behind a proxy, loopback always in `ALLOWED_HOSTS`.
+  - **Default ports:** production `127.0.0.1:${APP_PORT:-8889}`, dev `127.0.0.1:${DEV_PORT:-8880}`. Add `-p <name>`
+    to run a second copy (`bin/docker-up.sh -p other`; the same `-p` goes to `bin/docker-down.sh`). **CSRF origin note:**
+    admin login fails with a 403 unless the browsed origin is trusted. The compose default follows
+    `APP_PORT`/`DEV_PORT` for `localhost` and `127.0.0.1`; for any other host name or a TLS proxy set
+    `DJANGO_CSRF_TRUSTED_ORIGINS` (scheme and port) and `DJANGO_ALLOWED_HOSTS`, and `DJANGO_BEHIND_PROXY=1` when the
+    proxy sends `X-Forwarded-Proto` (never together with `APP_BIND=0.0.0.0` unless only the proxy reaches the port).
+    Create the admin user inside the stack: `docker compose exec app python manage.py createsuperuser`. The
+    scaffolder never runs Docker; the Docker run is a separate step the user (or you) starts.
+- **Prod/dev packages:** `requirements.txt` is production only; `requirements-dev.txt` is `-r requirements.txt` plus
+  `django-debug-toolbar`. `docutils` stays in production because `/admin/docs/` is enabled. The scaffolder's venv
+  installs `requirements-dev.txt`.
+- **Other generic hardening in every site:** CMS caches off under DEBUG (`DJANGO_CMS_CACHE=1` keeps them on), filer
+  private storage inside `MEDIA_ROOT` (not served under `/media/`), Google Map plugins hidden from editors without
+  `GOOGLE_MAPS_API_KEY` plus a no-script-error map template and `googlemap-guard.js`, a video template with a text
+  link, a `<button>` dropdown toggle in the navbar, `seeding.py` that never edits published content in place.
+- `CHANGELOG.md` (Keep a Changelog, `[Unreleased]` section for `bin/release.sh`).
 - Unless `--no-venv`: `venv/`, installed pinned requirements, migrated SQLite DB, superuser `admin` with a
   random password printed once at the end (never written to disk or git), `seed_pages` + `seed_site`
   (landing, About, Style & Capabilities, all published), and an initial git commit without any trailer

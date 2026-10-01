@@ -1,0 +1,7 @@
+## Releases and image pins
+
+The Docker and Compose images are pinned by digest (`name:tag@sha256:...`, tag kept readable) so a build is
+reproducible. The pins are refreshed with every `vX.Y.Z` release: `bin/release.sh vX.Y.Z` runs
+`bin/pin-images.sh`, the checks and the tests, writes `VERSION` and the changelog, and makes the release
+commit and annotated tag. It never pushes; it prints the commands. Maintainers only; contributors do not
+cut releases. `bin/pin-images.sh --check` shows whether a pin is stale.
