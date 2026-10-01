@@ -73,7 +73,7 @@ python3 bin/new-site.py --name "Acme Garden Club" \
 | `--no-docker` | Omit the Docker files (Dockerfile, `docker-compose.yml`, `docker/entrypoint.sh`, `.dockerignore`, `bin/docker-*.sh`) and the Docker sections of README/AGENTS.md. Included by default. Settings, `/health/` and the pinned requirements stay either way |
 | `--dry-run` | Print the file plan, touch nothing |
 | `--require-playwright` | Exit 2 before creating anything when Playwright or chromium is not ready (default: print a notice and continue) |
-| `--yes` | Skip the confirmation asked after interactive prompts |
+| `--yes` | Skip the confirmation asked after interactive prompts (each prompt re-asks until the answer is valid) |
 
 Exit codes: **0** ok, **1** a build step failed (partial project left in place, step named), **2** usage
 or validation error (missing name/purpose non-interactively, bad name, unsupported license, target exists
@@ -128,7 +128,7 @@ logged-in CMS toolbar (only `/admin/` is loaded, when `VERIFY_ADMIN_PASSWORD` is
 
 The green tab on the right edge with `DJANGO_DEBUG=1` is the django-debug-toolbar handle, not the CMS toolbar;
 it exists only when DEBUG is on and `DJANGO_DEBUG_TOOLBAR=0` removes it (app, middleware and url together).
-The generated README documents the `treebeard.E001` warning (upstream, harmless) once. `VERIFY_ADMIN_PASSWORD` additionally checks `/admin/` logged in. `PLAYWRIGHT_PYTHON` points at
+The generated README documents the `treebeard.E001` warning (upstream, harmless) once. `VERIFY_ADMIN_PASSWORD` additionally logs in to `/admin/` and ASSERTS the login (if the login form is still showing afterwards the step fails and so does `VERIFY RESULT`). `PLAYWRIGHT_PYTHON` points at
 a Python that has Playwright when the project venv does not. Final line: `VERIFY RESULT: PASS`
 (exit 0), `FAIL` (1), or `INCOMPLETE` (3, visual step skipped).
 

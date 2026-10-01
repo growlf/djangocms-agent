@@ -17,7 +17,7 @@ from PIL import Image as PILImage
 from PIL import ImageDraw
 
 from starter.constants import CONTENT_SLOT
-from starter.seeding import LANG, admin_content, ensure_page, get_user, page_for, placeholder, publish
+from starter.seeding import LANG, admin_content, ensure_page, ensure_site, get_user, page_for, placeholder, publish
 
 TEXT = "TextPlugin"
 HTML = "HtmlBlockPlugin"
@@ -273,6 +273,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, reset=False, **kwargs):
         self.reset = reset
+        ensure_site()
         user = get_user()
         home = page_for("home")
         if home is None:

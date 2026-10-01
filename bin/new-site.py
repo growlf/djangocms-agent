@@ -484,6 +484,17 @@ def prompt(label):
         raise UsageError(f"no answer given for {label}")
 
 
+def ask(label, validate):
+    """Prompt until `validate(answer)` accepts it (it raises UsageError otherwise); EOF still aborts (exit 2)."""
+    while True:
+        answer = prompt(label)
+        try:
+            return validate(answer)
+        except UsageError as e:
+            print(f"  Not accepted: {str(e).replace('--name', 'the name').replace('--purpose', 'the purpose')}. "
+                  "Please try again.", file=sys.stderr)
+
+
 def resolve_inputs(args):
     """Fill in name/purpose interactively when possible. Returns True if the human was prompted."""
     missing = [f for f in ("name", "purpose") if not getattr(args, f)]
@@ -493,9 +504,10 @@ def resolve_inputs(args):
             + ". Ask the human for the site NAME and its general PURPOSE; do not guess them."
         )
     if not args.name:
-        args.name = prompt("Site name")
+        args.name = ask("Site name", lambda v: (derive_names(clean_line(v, "--name", 64)), v)[1])
     if not args.purpose:
-        args.purpose = prompt("What is the general purpose of the site? (one or two sentences)")
+        args.purpose = ask("What is the general purpose of the site? (one or two sentences)",
+                           lambda v: clean_line(v, "--purpose", 500))
     return bool(missing)
 
 

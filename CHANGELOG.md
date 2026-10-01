@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Fixed (independent verification of the default site and scaffolder)
+- `scripts/visual_check.py --login` never logged in yet printed `RESULT: PASS` (`get_by_label/get_by_role` do not take `timeout`, the fallback clicked `button[type=submit]` while Django admin uses `input[type=submit]`, and a bare `except: pass` hid it). It now fills `#id_username`/`#id_password`, submits, waits for navigation and FAILS (exit 1, `ISSUE: login ...`) when the login form or a `/login` URL is still showing, no form is found, or the markup differs. Tests use a stub Django-admin-like login server. The generated `bin/verify.sh` text says the logged-in step asserts a real login and a failure makes `VERIFY RESULT: FAIL`.
+- Default site: the `(overview)` label inside the active dropdown item is readable (was 1.13:1 light, 1.22:1 dark); blockquote `cite` uses the muted token (was Bootstrap grey, 3.81:1 dark).
+- `bin/new-site.py` interactive mode re-asks each question until the answer is valid (name validated immediately); non-TTY still exits 2.
+- Seed commands set the django Site name to the site name and the domain to `SITE_DOMAIN` (default `localhost`) instead of `example.com`.
+
 ### Added (native Docker + PostgreSQL in every scaffolded site)
 - `assets/default-site/`: `Dockerfile`, `docker-compose.yml` (postgres:16-alpine `db`, gunicorn `app`, named volumes, healthchecks, `APP_PORT` default 8889), `docker/entrypoint.sh`, `dockerignore.template` (written as `.dockerignore`), `bin/docker-up.sh`, `bin/docker-down.sh`, `bin/docker-env.sh`, `__PROJECT_NAME__/health.py` (`/health/`), `starter/tests_docker.py`, and a `seed` management command (`seed_pages` then `seed_site`; the old commands still work).
 - Settings: DB switched by `DB_ENGINE` (SQLite stays the default), WhiteNoise after `SecurityMiddleware` with `ApphookReloadMiddleware` still first, `STORAGES`, `STATIC_ROOT` created at import (no "No directory at: staticfiles/" warning), `DJANGO_SERVE_MEDIA` media route for DEBUG off, `DJANGO_CSRF_TRUSTED_ORIGINS`, `DJANGO_BEHIND_PROXY`. gunicorn runs with `--no-control-socket`. Requirements add `psycopg[binary]==3.3.6`, `gunicorn==26.2.0`, `whitenoise==6.12.0` (installed on Python 3.12 and 3.14).

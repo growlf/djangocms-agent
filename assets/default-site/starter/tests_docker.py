@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unittest
 from io import StringIO
 from pathlib import Path
 
@@ -108,6 +109,7 @@ class SeedCommandTests(TestCase):
         self.assertEqual(Page.objects.count(), first)
 
 
+@unittest.skipUnless((BASE / 'Dockerfile').exists(), 'site was created with --no-docker: no container files to check')
 class ContainerFilesTests(SimpleTestCase):
     def test_container_files_present(self):
         for rel in ('Dockerfile', 'docker-compose.yml', 'docker/entrypoint.sh', '.dockerignore',

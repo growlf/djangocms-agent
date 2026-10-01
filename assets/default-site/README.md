@@ -43,6 +43,7 @@ this repo; they are plain Python and compile as-is.
     python manage.py createsuperuser
     DJANGO_DEBUG=1 python manage.py seed_pages     # Home (landing template), set as homepage
     DJANGO_DEBUG=1 python manage.py seed_site      # landing content, About, Style & Capabilities
+    # both also set the django Site: name = SITE_NAME, domain = $SITE_DOMAIN (default localhost), not example.com
     DJANGO_DEBUG=1 DJANGO_SECRET_KEY=dev python manage.py runserver 8005
     DJANGO_DEBUG=1 DJANGO_SECRET_KEY=dev python manage.py test starter
 

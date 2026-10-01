@@ -92,6 +92,9 @@ a:hover { color: var(--site-color-link-hover); }
 }
 .nav-link.active, .dropdown-item.active { --bs-dropdown-link-active-bg: var(--site-color-primary); }
 .dropdown-item.active { background-color: var(--site-color-primary); color: var(--site-color-on-primary); }
+/* secondary text inside the active item (the "(overview)" label) must follow the item's on-primary colour,
+   not the muted colour (1.1:1 on the primary background) */
+.dropdown-item.active .text-body-secondary { color: inherit !important; }
 
 /* === Base === */
 html { scroll-behavior: smooth; }
@@ -152,7 +155,7 @@ pre code { background: none; border: 0; padding: 0; overflow-wrap: normal; }
 .hero p, .cta-band p { color: #fff; }
 
 /* === Plugins === */
-.blockquote-footer { margin-top: 0.25rem; }
+.blockquote-footer { margin-top: 0.25rem; color: var(--site-color-text-muted); } /* Bootstrap hard-codes #6c757d: 3.8:1 on the dark background */
 .jumbotron { padding: 2rem; margin-bottom: 1rem; background: var(--site-color-bg-alt); border-radius: var(--site-radius); } /* removed in Bootstrap 5; djangocms-bootstrap5 still emits it */
 .list-group-item > p:last-child, .card-body > p:last-child, .alert > p:last-child, .tab-pane > p:last-child { margin-bottom: 0; }
 

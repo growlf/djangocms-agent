@@ -34,6 +34,7 @@ services:
       DJANGO_SERVE_MEDIA: ${DJANGO_SERVE_MEDIA:-1}
       DJANGO_BEHIND_PROXY: ${DJANGO_BEHIND_PROXY:-0}
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
       DB_ENGINE: postgres
       DB_HOST: db
       DB_PORT: "5432"

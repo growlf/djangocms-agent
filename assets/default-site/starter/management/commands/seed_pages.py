@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from starter.seeding import ensure_page, get_user, publish
+from starter.seeding import ensure_page, ensure_site, get_user, publish
 
 # (title, slug, template). The first entry becomes the home page. seed_site fills it and adds
 # the About and Style & Capabilities pages; add your own pages here.
@@ -14,6 +14,7 @@ class Command(BaseCommand):
     help = "Create the starter page tree (idempotent, self-healing, publishes drafts)"
 
     def handle(self, *args, **kwargs):
+        ensure_site()
         user = get_user()
         for i, (title, slug, template) in enumerate(PAGES):
             with transaction.atomic():

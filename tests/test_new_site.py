@@ -489,3 +489,64 @@ def test_dry_run_still_writes_nothing_and_no_venv_flags_work(tmp_path):
     proc = cli("--name", "Acme", "--purpose", "x", "--parent-dir", str(tmp_path), "--no-venv", "--skip-install",
                "--dry-run")
     assert proc.returncode == 0 and list(tmp_path.iterdir()) == []
+
+
+# --- interactive prompts re-ask instead of failing after all questions (D6) ---
+
+def _interactive(monkeypatch, answers):
+    it = iter(answers)
+    asked = []
+
+    def fake_input(label=""):
+        asked.append(label)
+        try:
+            return next(it)
+        except StopIteration:
+            raise EOFError
+
+    monkeypatch.setattr("builtins.input", fake_input)
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True, raising=False)
+    return asked
+
+
+def test_interactive_reprompts_bad_name_then_good(monkeypatch, capsys):
+    asked = _interactive(monkeypatch, ["", "../evil", "9lives", "Good Site", "A site for tests"])
+    args = ns.build_parser().parse_args([])
+    assert ns.resolve_inputs(args) is True
+    assert args.name == "Good Site" and args.purpose == "A site for tests"
+    # the name was validated immediately: three name prompts before the purpose prompt
+    assert [a.startswith("Site name") for a in asked] == [True, True, True, True, False]
+    err = capsys.readouterr().err
+    assert err.count("Not accepted") == 3 and "Please try again" in err
+
+
+def test_interactive_reprompts_empty_purpose(monkeypatch, capsys):
+    asked = _interactive(monkeypatch, ["Good Site", "", "   ", "Real purpose"])
+    args = ns.build_parser().parse_args([])
+    ns.resolve_inputs(args)
+    assert args.purpose == "Real purpose"
+    assert capsys.readouterr().err.count("the purpose must not be empty") == 2
+
+
+def test_interactive_eof_still_exits_usage_error(monkeypatch):
+    _interactive(monkeypatch, ["", ""])  # then EOF
+    args = ns.build_parser().parse_args([])
+    with pytest.raises(ns.UsageError):
+        ns.resolve_inputs(args)
+
+
+def test_non_tty_missing_args_still_usage_error(monkeypatch):
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: False, raising=False)
+    args = ns.build_parser().parse_args([])
+    with pytest.raises(ns.UsageError):
+        ns.resolve_inputs(args)
+
+
+def test_container_file_tests_skip_without_docker_files():
+    """A --no-docker site still ships starter/tests_docker.py (the behaviour tests apply either way), so the
+    container-file checks must skip themselves when the Dockerfile is absent (found: verify.sh ended FAIL)."""
+    repo = Path(__file__).resolve().parent.parent
+    text = (repo / "assets" / "default-site" / "starter" / "tests_docker.py").read_text()
+    head, _, _ = text.partition("class ContainerFilesTests")
+    assert "skipUnless((BASE / 'Dockerfile').exists()" in head.splitlines()[-2] or "skipUnless((BASE / 'Dockerfile').exists()" in head[-300:], \
+        "ContainerFilesTests must skip when the Dockerfile is absent"

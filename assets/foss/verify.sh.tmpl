@@ -6,7 +6,8 @@
 #        visual_check.py on key URLs, desktop + mobile (needs Playwright). Each step prints what it covers.
 # Env:   PLAYWRIGHT_PYTHON  python that can `import playwright` (default: project venv, then python3)
 #        VERIFY_PORT        port for the temporary server (default: first free port from 8010)
-#        VERIFY_ADMIN_PASSWORD  if set, also checks /admin/ logged in as `admin`
+#        VERIFY_ADMIN_PASSWORD  if set, also logs in to /admin/ as `admin`; the login is ASSERTED
+#                         (still on the login form afterwards = FAIL, so VERIFY RESULT: FAIL)
 # Final line: VERIFY RESULT: PASS | FAIL | INCOMPLETE.  Exit: 0 pass, 1 fail, 3 incomplete (visual skipped).
 set -u
 cd "$(dirname "$0")/.."
@@ -44,8 +45,14 @@ echo "URLs:    $PAGES${VERIFY_ADMIN_PASSWORD:+ /admin/ (logged in as admin, desk
 echo "Asserts: HTTP status < 400; no console errors; no failed same-origin requests; not a 404 or Django error"
 echo "         page; non-empty body text; site name '{{SITE_NAME}}' present; NO horizontal overflow"
 echo "         (scrollWidth > clientWidth)."
+if [ -n "${VERIFY_ADMIN_PASSWORD:-}" ]; then
+  echo "Login:   the /admin/ step ASSERTS a real login (fills the admin form, submits, fails if the login form or"
+  echo "         a /login URL is still showing); a failed login makes VERIFY RESULT: FAIL."
+else
+  echo "Login:   NOT checked (VERIFY_ADMIN_PASSWORD is not set, so no logged-in page is verified)."
+fi
 echo "NOT checked: layout/colour/contrast quality, images that return 200 but look wrong, JavaScript"
-echo "         behaviour, the logged-in CMS toolbar (unless admin check is enabled), cross-origin requests."
+echo "         behaviour, the logged-in CMS toolbar on public pages, cross-origin requests."
 echo "         A human (or you) must LOOK at the screenshots for those. The temporary server runs with the"
 echo "         django-debug-toolbar disabled (DJANGO_DEBUG_TOOLBAR=0) so its handle is not in the shots."
 PW=""
@@ -98,7 +105,7 @@ PYEOF
       done
     done
     if [ -n "${VERIFY_ADMIN_PASSWORD:-}" ]; then
-      echo "-- /admin/ (logged in as admin) -> $SHOTS/admin_desktop.png"
+      echo "-- /admin/ (login asserted, as admin) -> $SHOTS/admin_desktop.png (must show the admin index, not the login form)"
       "$PW" scripts/visual_check.py "http://127.0.0.1:$PORT/admin/" --login admin:VERIFY_ADMIN_PASSWORD \
         --out "$SHOTS/admin_desktop.png" || FAIL=1
     fi
