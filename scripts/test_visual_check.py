@@ -1,6 +1,8 @@
 """Tests for scripts/visual_check.py (need playwright + chromium; skipped otherwise)."""
 import subprocess
+import os
 import sys
+from urllib.parse import parse_qs
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -153,6 +155,127 @@ class TestVisualCheck(unittest.TestCase):
         r = subprocess.run([sys.executable, SCRIPT, "http://127.0.0.1:1/"],
                            capture_output=True, text=True, timeout=60)
         self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+
+
+LOGIN_FORM = (
+    "<html><head><title>Log in | Django site admin</title></head><body><h1>Django administration</h1>"
+    '{note}<form method="post"><input type="hidden" name="csrfmiddlewaretoken" value="tok123">'
+    '<input type="text" name="username" id="id_username"><input type="password" name="password" id="id_password">'
+    '<input type="submit" value="Log in"></form></body></html>'
+)
+ODD_FORM = (
+    "<html><head><title>Sign in</title></head><body><h1>Sign in</h1>"
+    '<form method="post"><input name="email"><input name="pw" type="text"><div role="button">Go</div></form></body></html>'
+)
+
+
+class _AdminStub(BaseHTTPRequestHandler):
+    """Mimics Django admin login: redirect to /admin/login/, csrf field, POST sets a session cookie."""
+    USER, PASSWORD = "admin", "right-password"
+
+    def _send(self, code, body="", headers=()):
+        self.send_response(code)
+        self.send_header("Content-Type", "text/html")
+        for k, v in headers:
+            self.send_header(k, v)
+        self.end_headers()
+        self.wfile.write(body.encode())
+
+    def do_GET(self):
+        path = self.path.split("?")[0]
+        if path == "/admin/":
+            if "sessionid=ok" in self.headers.get("Cookie", ""):
+                return self._send(200, "<html><head><title>Site administration | Django site admin</title></head>"
+                                       "<body><h1>Site administration</h1><p>Welcome, admin.</p></body></html>")
+            return self._send(302, headers=[("Location", "/admin/login/?next=/admin/")])
+        if path == "/admin/login/":
+            return self._send(200, LOGIN_FORM.format(note=""))
+        if path == "/plain/":
+            return self._send(200, "<html><head><title>Plain</title></head><body><h1>Plain</h1></body></html>")
+        if path == "/odd/":
+            return self._send(302, headers=[("Location", "/odd/login/")])
+        if path == "/odd/login/":
+            return self._send(200, ODD_FORM)
+        self._send(404)
+
+    def do_POST(self):
+        data = parse_qs(self.rfile.read(int(self.headers.get("Content-Length", 0))).decode())
+        ok = (data.get("csrfmiddlewaretoken") == ["tok123"] and data.get("username") == [self.USER]
+              and data.get("password") == [self.PASSWORD])
+        if ok:
+            return self._send(302, headers=[("Location", "/admin/"), ("Set-Cookie", "sessionid=ok; Path=/")])
+        self._send(200, LOGIN_FORM.format(note='<p class="errornote">Please enter the correct username and password.</p>'))
+
+    def log_message(self, *args):
+        pass
+
+
+def _load():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("vc", SCRIPT)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class TestLoginRule(unittest.TestCase):
+    def test_login_url_means_failed(self):
+        self.assertTrue(_load().login_failed("http://x/admin/login/?next=/admin/", False))
+
+    def test_form_present_means_failed(self):
+        self.assertTrue(_load().login_failed("http://x/admin/", True))
+
+    def test_clean_state_is_success(self):
+        self.assertFalse(_load().login_failed("http://x/admin/", False))
+
+
+@unittest.skipUnless(_has_playwright(), "playwright not installed; skipping login tests")
+class TestLogin(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.server = HTTPServer(("127.0.0.1", 0), _AdminStub)
+        cls.base = f"http://127.0.0.1:{cls.server.server_address[1]}"
+        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+
+    def run_login(self, path, password, out=None):
+        env = dict(os.environ, VC_TEST_PW=password)
+        args = [sys.executable, SCRIPT, self.base + path, "--login", "admin:VC_TEST_PW"]
+        if out:
+            args += ["--out", out]
+        return subprocess.run(args, capture_output=True, text=True, timeout=90, env=env)
+
+    def test_correct_credentials_pass_on_post_login_page(self):
+        r = self.run_login("/admin/", "right-password")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("RESULT: PASS", r.stdout)
+        self.assertIn("Title: Site administration", r.stdout)
+        self.assertNotIn("/login", r.stdout.split("Final URL:")[1].splitlines()[0])
+
+    def test_wrong_credentials_fail(self):
+        r = self.run_login("/admin/", "wrong")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("ISSUE: login failed", r.stdout)
+        self.assertIn("RESULT: FAIL", r.stdout)
+        self.assertNotIn("RESULT: PASS", r.stdout)
+
+    def test_different_login_markup_fails_not_passes(self):
+        r = self.run_login("/odd/", "right-password")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("ISSUE: login", r.stdout)
+        self.assertNotIn("RESULT: PASS", r.stdout)
+
+    def test_no_login_form_on_page_fails(self):
+        r = self.run_login("/plain/", "right-password")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("ISSUE: login: no login form found", r.stdout)
+
+    def test_password_not_printed(self):
+        r = self.run_login("/admin/", "wrong-secret-xyz")
+        self.assertNotIn("wrong-secret-xyz", r.stdout + r.stderr)
 
 
 if __name__ == "__main__":

@@ -128,7 +128,7 @@ logged-in CMS toolbar (only `/admin/` is loaded, when `VERIFY_ADMIN_PASSWORD` is
 
 The green tab on the right edge with `DJANGO_DEBUG=1` is the django-debug-toolbar handle, not the CMS toolbar;
 it exists only when DEBUG is on and `DJANGO_DEBUG_TOOLBAR=0` removes it (app, middleware and url together).
-The generated README documents the `treebeard.E001` warning (upstream, harmless) once. `VERIFY_ADMIN_PASSWORD` additionally checks `/admin/` logged in. `PLAYWRIGHT_PYTHON` points at
+The generated README documents the `treebeard.E001` warning (upstream, harmless) once. `VERIFY_ADMIN_PASSWORD` additionally logs in to `/admin/` and ASSERTS the login (if the login form is still showing afterwards the step fails and so does `VERIFY RESULT`). `PLAYWRIGHT_PYTHON` points at
 a Python that has Playwright when the project venv does not. Final line: `VERIFY RESULT: PASS`
 (exit 0), `FAIL` (1), or `INCOMPLETE` (3, visual step skipped).
 

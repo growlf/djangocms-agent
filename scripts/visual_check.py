@@ -3,7 +3,8 @@
 Asserts (each failure is an ISSUE line): HTTP status < 400, no console errors, no failed same-origin
 subresource requests, not a 404 page, not a Django debug error page, non-empty visible text, no
 horizontal overflow (documentElement.scrollWidth > clientWidth + 1px), and every --expect-text string
-present. It does NOT check layout quality, colors/contrast, broken images that return 200, cross-origin
+present. With --login the login is asserted: ISSUE if the login form is still present or the URL still
+contains /login afterwards. It does NOT check layout quality, colors/contrast, broken images that return 200, cross-origin
 requests, or JavaScript behaviour: a human must look at the screenshot for those.
 """
 import argparse
@@ -90,6 +91,51 @@ def _horizontal_overflow(page):
         return None
 
 
+USERNAME_SEL = "#id_username, input[name=username]"
+PASSWORD_SEL = "#id_password, input[name=password]"
+SUBMIT_SEL = "input[type=submit], button[type=submit]"
+
+
+def login_failed(final_url, form_still_present):
+    """True when the post-login state shows the login did not happen (pure; unit-tested)."""
+    return "/login" in final_url or form_still_present
+
+
+def perform_login(page, url, user, password):
+    """Log in through the login form that `url` shows (Django admin markup or a generic username/password
+    form), then VERIFY it worked.  Returns a list of ISSUE strings (empty on success); never swallows."""
+    try:
+        page.goto(url, wait_until="domcontentloaded", timeout=15000)
+        try:
+            page.wait_for_selector(PASSWORD_SEL, state="visible", timeout=5000)
+        except Exception:
+            return [f"ISSUE: login: no login form found at {page.url} (expected {USERNAME_SEL} / "
+                    f"{PASSWORD_SEL})"]
+        if page.locator(USERNAME_SEL).count() == 0 or page.locator(SUBMIT_SEL).count() == 0:
+            return [f"ISSUE: login: login form at {page.url} has no username field or submit control"]
+        page.locator(USERNAME_SEL).first.fill(user, timeout=5000)
+        page.locator(PASSWORD_SEL).first.fill(password, timeout=5000)
+        with page.expect_navigation(wait_until="domcontentloaded", timeout=15000):
+            page.locator(SUBMIT_SEL).first.click(timeout=5000)
+        try:
+            page.wait_for_load_state("load", timeout=5000)
+        except Exception:
+            pass
+        still = page.locator(PASSWORD_SEL).count() > 0
+        if login_failed(page.url, still):
+            note = ""
+            try:
+                err = page.locator(".errornote").first
+                if err.count():
+                    note = f" ({err.inner_text().strip()})"
+            except Exception:
+                pass
+            return [f"ISSUE: login failed: still on the login form at {page.url}{note}"]
+        return []
+    except Exception as e:
+        return [f"ISSUE: login error: {type(e).__name__}: {str(e).splitlines()[0] if str(e) else ''}"]
+
+
 # ---------------------------------------------------------------------------
 # Main check
 # ---------------------------------------------------------------------------
@@ -148,22 +194,8 @@ def check_url(url, out_path, width, height, expect_texts, login_spec):
                 if env_var not in os.environ:
                     raise ValueError(f"--login: environment variable {env_var} is not set")
                 password = os.environ[env_var]
-                page.goto(url, wait_until="domcontentloaded", timeout=15000)
-                # Try common Django admin login patterns
-                try:
-                    page.get_by_label("Username", timeout=3000).fill(user)
-                    page.get_by_label("Password", timeout=3000).fill(password)
-                    page.get_by_role("button", name="log in", timeout=3000).click()
-                    page.wait_for_load_state("networkidle", timeout=10000)
-                except Exception:
-                    # If admin login fields not found, try generic form
-                    try:
-                        page.locator('input[name="username"], input[type="text"]').first.fill(user, timeout=3000)
-                        page.locator('input[name="password"], input[type="password"]').first.fill(password, timeout=3000)
-                        page.locator('button[type="submit"]').first.click(timeout=3000)
-                        page.wait_for_load_state("networkidle", timeout=10000)
-                    except Exception:
-                        pass  # Login may not be possible on this page
+                login_issues = perform_login(page, url, user, password)
+                issues.extend(login_issues)
 
             # Navigate
             response = page.goto(url, wait_until="domcontentloaded", timeout=30000)
