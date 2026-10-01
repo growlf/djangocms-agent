@@ -9,3 +9,4 @@ staticfiles/
 .idea/
 .vscode/
 .DS_Store
+verify-shots/

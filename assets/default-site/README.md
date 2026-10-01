@@ -7,7 +7,7 @@ It was built and verified in a scratch project (django-cms 5.1.3, Django 5.2.17)
 
 ## Placeholders
 
-A scaffold copies this directory into a new project and substitutes two tokens:
+`bin/new-site.py` (see `references/new-site.md`) is that scaffold: it copies this directory into a new project and substitutes two tokens:
 
 | Token | Meaning | Where |
 |---|---|---|
