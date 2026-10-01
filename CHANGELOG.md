@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed (new-site friction found by an end-to-end test)
+- `bin/new-site.py` preflights Playwright at startup, before creating anything: `playwright` importable with `PLAYWRIGHT_PYTHON` (else `python3`) and chromium installed. If not, a non-fatal NOTICE prints the one-time scratch-venv setup; `--require-playwright` makes it fatal (exit 2). Workflow order in `SKILL.md`, `agents/djangocms-agent.md` and `references/new-site.md` is now: ask, check Playwright, scaffold, verify.
+- `DJANGO_DEBUG_TOOLBAR` switch in `settings_fragment.py` (`USE_DEBUG_TOOLBAR`): default on with DEBUG; `0/false/no/off` removes the app, middleware and `/__debug__/` url together. Generated `bin/verify.sh` runs its server with it off, so the debug-toolbar handle (not the CMS toolbar) no longer overlaps screenshots. Documented in the default-site README, `references/project-setup.md`, `.env.example`.
+- Generated `bin/verify.sh` prints per step what it covers, and for the visual step the URLs, what is asserted and what is not checked.
+- `scripts/visual_check.py` now fails on horizontal overflow (`documentElement.scrollWidth > clientWidth + 1`), with unit and browser tests.
+- Docs: which URL/port to report (first free port >= 8000, exact run command), admin login reported as printed and never written to a file, link-mode installs symlink `bin/ assets/ references/ scripts/` into the clone, `treebeard.E001` documented once in the generated README. The scaffolder's suggested port now starts at 8000.
+
 ### Added (new-site scaffolder)
 - `bin/new-site.py` (stdlib, Python 3.12+): `--name`, `--purpose`, `--site-name`, `--parent-dir`, `--license`, `--author`, `--no-venv`/`--skip-install`, `--no-opskit`, `--dry-run`, `--yes`. Name and purpose are required from the human (interactive prompt on a TTY, exit 2 otherwise). Validates names, never overwrites, refuses a non-empty target. Writes the default site with `__PROJECT_NAME__`/`__SITE_NAME__` substituted in contents and paths, wsgi/asgi/`__init__`, FOSS files, AGENTS.md + thin CLAUDE.md with the purpose, README, `.opskit/pack.yml` (file only, no opskit command), `scripts/visual_check.py`, `bin/verify.sh`; then venv, install, migrate, `admin` superuser with a random one-time password, seed, `git init` + first commit.
 - `assets/foss/`: governance templates (from the foss-init conventions) and licenses MIT, ISC, BSD-3-Clause, Unlicense; `assets/default-site/.env.example`.

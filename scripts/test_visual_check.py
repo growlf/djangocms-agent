@@ -16,6 +16,7 @@ PAGES = {
     "/django-err": '<html><head><title>E</title></head><body><div id="summary">Exception: boom</div></body></html>',
     "/empty": "<html><head><title>Empty</title></head><body></body></html>",
     "/missing-asset": '<html><head><title>A</title><link rel="stylesheet" href="/nope.css"></head><body><h1>A</h1></body></html>',
+    "/overflow": '<html><head><title>O</title></head><body><h1>Wide</h1><div style="width:3000px;height:10px;background:red"></div></body></html>',
     "/mobile-width": '<html><head><title>M</title></head><body><h1 id="w">x</h1><script>document.getElementById("w").textContent="w="+window.innerWidth;</script></body></html>',
 }
 
@@ -30,6 +31,29 @@ class _Handler(BaseHTTPRequestHandler):
 
     def log_message(self, *args):
         pass
+
+
+class TestOverflowRule(unittest.TestCase):
+    """Pure logic; runs without Playwright."""
+
+    @staticmethod
+    def rule():
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("vc", SCRIPT)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod.overflow_issue
+
+    def test_fits(self):
+        self.assertIsNone(self.rule()(390, 390))
+
+    def test_one_pixel_rounding_tolerated(self):
+        self.assertIsNone(self.rule()(391, 390))
+
+    def test_overflow_reported(self):
+        msg = self.rule()(520, 390)
+        self.assertIn("horizontal overflow", msg)
+        self.assertTrue(msg.startswith("ISSUE:"))
 
 
 def _has_playwright():
@@ -111,6 +135,15 @@ class TestVisualCheck(unittest.TestCase):
         r = self.run_check("/ok", "--expect-text", "zzznotexist")
         self.assertEqual(r.returncode, 1)
         self.assertIn("ISSUE: missing text: zzznotexist", r.stdout)
+
+    def test_horizontal_overflow_fails(self):
+        r = self.run_check("/overflow", "--mobile")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("ISSUE: horizontal overflow", r.stdout)
+
+    def test_no_overflow_passes(self):
+        r = self.run_check("/ok", "--mobile")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_mobile_viewport(self):
         r = self.run_check("/mobile-width", "--mobile", "--expect-text", "w=390")

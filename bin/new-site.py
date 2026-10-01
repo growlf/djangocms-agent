@@ -19,7 +19,13 @@ manifest file.
 
 Exit codes: 0 success; 1 a build step failed (the partially built project is left in place and the failing
 step is named); 2 usage or validation error (missing name/purpose in a non-interactive run, invalid name,
-unsupported license, target directory exists and is not empty).
+unsupported license, target directory exists and is not empty, or --require-playwright with Playwright
+or chromium not ready).
+
+Preflight: at startup, before anything is created, it checks that `playwright` is importable with the Python
+bin/verify.sh would use (PLAYWRIGHT_PYTHON, else python3) and that chromium is installed. If not it prints a
+non-fatal NOTICE with the one-time setup commands (scratch venv + PLAYWRIGHT_PYTHON); verification stays
+INCOMPLETE until done. --require-playwright makes that fatal (exit 2).
 Python 3.12+, standard library only.
 """
 import argparse
@@ -294,7 +300,7 @@ def run(cmd, cwd, env=None, step=""):
     return proc.stdout
 
 
-def free_port(start=8010, end=8099):
+def free_port(start=8000, end=8099):
     for port in range(start, end):
         with socket.socket() as s:
             try:
@@ -373,6 +379,67 @@ def print_plan(plan, target, ctx):
     print("  then: git init + first commit")
 
 
+# --------------------------------------------------------------------------- playwright preflight
+
+PW_SETUP = (
+    "python3 -m venv /tmp/pw-venv && /tmp/pw-venv/bin/pip install playwright "
+    "&& /tmp/pw-venv/bin/playwright install chromium"
+)
+_CHROMIUM_PROBE = (
+    "import os\n"
+    "from playwright.sync_api import sync_playwright\n"
+    "with sync_playwright() as p:\n"
+    "    print('1' if os.path.exists(p.chromium.executable_path) else '0')\n"
+)
+
+
+def playwright_candidates(env=None):
+    """Pythons bin/verify.sh would try, in order: PLAYWRIGHT_PYTHON, then python3 (the project venv
+    does not exist yet and Playwright is not in requirements.txt)."""
+    env = os.environ if env is None else env
+    found = [env.get("PLAYWRIGHT_PYTHON", "")]
+    found.append(shutil.which("python3", path=env.get("PATH")) or "")
+    return [c for c in found if c]
+
+
+def playwright_preflight(env=None):
+    """Return (ok, problems): ok is True only when a candidate Python imports playwright and chromium
+    is installed (when that can be told cheaply). Never raises; never installs anything."""
+    problems = []
+    for cand in playwright_candidates(env):
+        try:
+            imp = subprocess.run([cand, "-c", "import playwright"], capture_output=True, timeout=30)
+        except (OSError, subprocess.SubprocessError):
+            problems.append(f"{cand}: cannot be run")
+            continue
+        if imp.returncode != 0:
+            problems.append(f"{cand}: 'import playwright' fails")
+            continue
+        try:
+            probe = subprocess.run([cand, "-c", _CHROMIUM_PROBE], capture_output=True, text=True, timeout=60)
+        except (OSError, subprocess.SubprocessError):
+            return True, []  # cannot tell cheaply; do not warn
+        if probe.returncode == 0 and probe.stdout.strip() == "1":
+            return True, []
+        if probe.returncode == 0:
+            problems.append(f"{cand}: playwright is importable but chromium is not installed")
+        else:
+            return True, []  # probe itself failed; cannot tell cheaply
+    if not problems:
+        problems.append("no python found to check for playwright")
+    return False, problems
+
+
+def playwright_notice(problems):
+    lines = ["NOTICE: Playwright is not ready, so bin/verify.sh would end VERIFY RESULT: INCOMPLETE "
+             "(no visual check) until it is set up.", *[f"  - {p}" for p in problems],
+             "  One-time setup (scratch venv, never system Python):",
+             f"    {PW_SETUP}",
+             "  Then run the generated verification with:",
+             "    PLAYWRIGHT_PYTHON=/tmp/pw-venv/bin/python bin/verify.sh"]
+    return "\n".join(lines)
+
+
 # --------------------------------------------------------------------------- CLI
 
 def build_parser():
@@ -388,6 +455,9 @@ def build_parser():
                    help="write files and git init only: no venv, pip install, migrate or seed")
     p.add_argument("--no-opskit", action="store_true", help="do not write .opskit/pack.yml")
     p.add_argument("--dry-run", action="store_true", help="print the file plan; touch nothing")
+    p.add_argument("--require-playwright", action="store_true",
+                   help="exit 2 before creating anything if Playwright/chromium is not ready for verification "
+                        "(default: print a notice and continue)")
     p.add_argument("--yes", "-y", action="store_true", help="skip the confirmation asked after interactive prompts")
     return p
 
@@ -450,6 +520,14 @@ def check_target(parent, slug):
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
+    ok, problems = playwright_preflight()
+    if not ok:
+        if args.require_playwright:
+            print("error: --require-playwright: Playwright is not ready.\n" + playwright_notice(problems),
+                  file=sys.stderr)
+            return EXIT_USAGE
+        print(playwright_notice(problems))
+        print()
     try:
         prompted = resolve_inputs(args)
         ctx = make_context(args)
@@ -502,6 +580,7 @@ def main(argv=None):
     print("Next steps:")
     print(f"  cd {target}")
     print("  bin/verify.sh                      # check, migrations, tests, seed idempotency, Playwright screenshots")
+    print("  # Tell the user the first FREE port >= 8000 (check `ss -ltn`); this suggestion is only a guess:")
     print(f"  DJANGO_DEBUG=1 DJANGO_SECRET_KEY=dev {py} manage.py runserver {port}")
     print()
     print("IMPORTANT: run bin/verify.sh and LOOK at verify-shots/*.png before telling anyone the site works.")
