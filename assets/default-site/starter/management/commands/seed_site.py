@@ -46,7 +46,7 @@ def landing_specs(style_pk, about_pk):
             btn("About this site", "btn btn-outline-light btn-lg", about_pk),
         ],
         "feature_1": [text("<h3>Bootstrap 5 layout</h3><p>Responsive grid, navbar with dropdowns and a hamburger menu, vendored locally so the site works on a LAN with no CDN.</p>")],
-        "feature_2": [text("<h3>Light and dark</h3><p>The theme follows your operating system through <code>prefers-color-scheme</code>, using CSS custom properties layered on Bootstrap.</p>")],
+        "feature_2": [text("<h3>Light and dark</h3><p>The theme follows your operating system through <code>prefers-color-scheme</code> until a visitor picks one with the header button (remembered in the browser), using CSS custom properties layered on Bootstrap.</p>")],
         "feature_3": [text("<h3>Draft and publish</h3><p>djangocms-versioning gives every page a draft, a publish step and a history, so editing never breaks the live site.</p>")],
         CONTENT_SLOT: [
             text("<h2>Sample content</h2>"

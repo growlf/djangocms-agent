@@ -2,7 +2,8 @@
  * Site theme, layered on Bootstrap 5.3 (static/vendor/bootstrap).
  * The --site-* custom properties are the single source of colour, spacing and type; the block
  * "Bridge to Bootstrap" maps them onto Bootstrap's --bs-* variables. Light/dark: static/js/theme.js
- * sets data-bs-theme from prefers-color-scheme; the media query below is the no-JavaScript fallback.
+ * sets data-bs-theme (stored header-toggle choice, else prefers-color-scheme); the media query below is the
+ * no-JavaScript fallback (the toggle button is hidden until the script runs).
  */
 
 /* === Design tokens (light) === */
@@ -143,6 +144,16 @@ pre code { background: none; border: 0; padding: 0; overflow-wrap: normal; }
 .dropdown-menu { max-width: 90vw; min-width: 16rem; }
 .dropdown-item { white-space: normal; }
 .site-footer { background: var(--site-color-bg-alt); color: var(--site-color-text-muted); }
+
+/* theme toggle: text-coloured glyph on a bordered button; border and glyph are >= 3:1 on the header in both schemes */
+.theme-toggle { color: var(--site-color-text); border: 1px solid var(--site-color-text-muted); line-height: 1; padding: .4rem .5rem; min-width: 2.75rem; min-height: 2.5rem; display: inline-flex; align-items: center; justify-content: center; }
+.theme-toggle:hover { background: var(--site-color-bg-alt); color: var(--site-color-text); border-color: var(--site-color-text); }
+.theme-toggle svg { display: block; }
+.theme-toggle .theme-icon-sun { display: none; }
+[data-bs-theme="dark"] .theme-toggle .theme-icon-moon { display: none; }
+[data-bs-theme="dark"] .theme-toggle .theme-icon-sun { display: block; }
+.theme-toggle[hidden] { display: none; }
+.theme-toggle:focus-visible { outline: 3px solid var(--site-color-focus); outline-offset: 2px; }
 
 /* === Landing hero and CTA band === */
 .hero, .cta-band {

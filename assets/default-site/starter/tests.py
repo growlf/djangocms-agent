@@ -250,6 +250,16 @@ class ThemeTests(TestCase):
                        'aria-controls="site-nav"', 'aria-label="Toggle navigation"', 'id="site-nav"', "navbar-expand-lg"):
             self.assertContains(r, needle)
 
+    def test_theme_toggle_button_on_every_page(self):
+        for path in ("/", "/about/", "/style-and-capabilities/"):
+            r = self.client.get(path)
+            self.assertContains(r, "data-theme-toggle", msg_prefix=path)
+            self.assertContains(r, 'aria-label="Dark mode"', msg_prefix=path)
+            self.assertContains(r, 'aria-pressed="false"', msg_prefix=path)
+            html = r.content.decode()
+            self.assertLess(html.index("data-theme-toggle"), html.index('class="collapse navbar-collapse"'))  # outside the hamburger
+            self.assertLess(html.index("js/theme.js"), html.index("</head>"))  # applied before first paint
+
     def test_theme_script_and_skip_link(self):
         r = self.client.get("/")
         self.assertContains(r, "js/theme.js")
