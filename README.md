@@ -68,6 +68,22 @@ Playwright screenshots desktop + mobile) and, unless `--no-docker`, a Docker + P
 plan. Exit codes 0 ok, 1 step failed, 2 usage error. Full reference: `references/new-site.md`.
 Tests: `python3 -m pytest tests/`.
 
+## Find packages (Django Packages)
+
+```bash
+python3 bin/djangopackages.py search "django cms blog"     # packages + related grids + PyPI facts + compat heuristic
+python3 bin/djangopackages.py grids forms                  # comparison grids about forms
+python3 bin/djangopackages.py grid djangocms-plugins       # members of a grid, ranked
+python3 bin/djangopackages.py show djangocms-versioning
+python3 bin/package-trial.py djangocms-markdown --app djangocms_markdown   # throwaway install + check + migrate
+```
+
+Stdlib-only; uses the key-less Django Packages API v4 and the PyPI JSON API, caches for 6 hours, never
+installs anything itself. `package-trial.py` builds a throwaway copy of the default site in a temp dir and
+reports PASS/FAIL per step; PASS means only install + import + `check` + `migrate`, not that the package
+renders. The agent searches and recommends, and installs only when you ask. Checklist, supply-chain care,
+verified API facts and the install/configure/record procedure: `references/django-packages.md`.
+
 ## Installation
 
 ### Recommended: the installer

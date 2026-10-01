@@ -1,0 +1,16 @@
+{
+ "created": "2024-01-16T03:15:22.937230-05:00",
+ "description": "Plugins for websites powered by Django CMS. For more informations on Django CMS, see https://www.django-cms.org/ .",
+ "header": false,
+ "id": 440,
+ "is_locked": false,
+ "modified": "2024-01-16T03:15:22.937250-05:00",
+ "packages": [
+  "https://djangopackages.org/api/v4/packages/6/",
+  "https://djangopackages.org/api/v4/packages/2622/",
+  "https://djangopackages.org/api/v4/packages/6410/",
+  "https://djangopackages.org/api/v4/packages/802/"
+ ],
+ "slug": "djangocms-plugins",
+ "title": "Django CMS Plugins"
+}

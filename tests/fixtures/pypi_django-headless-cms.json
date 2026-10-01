@@ -1,0 +1,122 @@
+{
+ "info": {
+  "author": null,
+  "author_email": "Huy Nguyen <danghuy1999@gmail.com>",
+  "bugtrack_url": null,
+  "classifiers": [
+   "Environment :: Web Environment",
+   "Framework :: Django",
+   "Framework :: Django :: 4.0",
+   "Framework :: Django :: 4.1",
+   "Framework :: Django :: 4.2",
+   "Framework :: Django :: 5.0",
+   "Framework :: Django :: 5.1",
+   "Framework :: Django :: 5.2",
+   "Intended Audience :: Developers",
+   "Intended Audience :: Information Technology",
+   "License :: OSI Approved :: BSD License",
+   "Operating System :: OS Independent",
+   "Programming Language :: Python :: 3",
+   "Programming Language :: Python :: 3 :: Only",
+   "Programming Language :: Python :: 3.10",
+   "Programming Language :: Python :: 3.11",
+   "Programming Language :: Python :: 3.12",
+   "Topic :: Internet :: WWW/HTTP",
+   "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+   "Topic :: Software Development",
+   "Topic :: Software Development :: Libraries",
+   "Topic :: Software Development :: Libraries :: Application Frameworks"
+  ],
+  "description": "",
+  "description_content_type": "text/markdown",
+  "docs_url": null,
+  "download_url": null,
+  "downloads": {
+   "last_day": -1,
+   "last_month": -1,
+   "last_week": -1
+  },
+  "dynamic": null,
+  "home_page": null,
+  "keywords": null,
+  "license": "Copyright \u00a9 2024-present, Huy Nguyen <danghuy1999@gmail.com>.\n        \n        All rights reserved.\n        \n        Redistribution and use in source and binary forms, with or without\n        modification, are permitted provided that the following conditions are met:\n        \n        * Redistributions of source code must retain the above copyright notice, this\n          list of conditions and the following disclaimer.\n        \n        * Redistributions in binary form must reproduce the above copyright notice,\n          this list of conditions and the following disclaimer in the documentation\n          and/or other materials provided with the distribution.\n        \n        * Neither the name of the copyright holder nor the names of its\n          contributors may be used to endorse or promote products derived from\n          this software without specific prior written permission.\n        \n        THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND\n        ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED\n        WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\n        DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE\n        FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL\n        DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR\n        SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER\n        CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,\n        OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\n        OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.",
+  "license_expression": null,
+  "license_files": [
+   "LICENSE"
+  ],
+  "maintainer": null,
+  "maintainer_email": null,
+  "name": "django-headless-cms",
+  "package_url": "https://pypi.org/project/django-headless-cms/",
+  "platform": null,
+  "project_url": "https://pypi.org/project/django-headless-cms/",
+  "project_urls": {
+   "Documentation": "https://django-headless-cms.readthedocs.io/",
+   "Homepage": "https://github.com/huynguyengl99/django-headless-cms",
+   "Repository": "https://github.com/huynguyengl99/django-headless-cms"
+  },
+  "provides_extra": [
+   "openai"
+  ],
+  "release_url": "https://pypi.org/project/django-headless-cms/1.3.0/",
+  "requires_dist": [
+   "django-admin-interface",
+   "django-admin-sortable2>=2.2.8",
+   "django-filter",
+   "django-import-export",
+   "django-localized-fields",
+   "django-reversion",
+   "django-solo",
+   "django<6,>=4",
+   "djangorestframework>=3",
+   "drf-spectacular",
+   "martor",
+   "psycopg",
+   "unidecode",
+   "openai>=1; extra == \"openai\""
+  ],
+  "requires_python": "<4.0,>=3.10",
+  "summary": "A simple django-based headless CMS.",
+  "version": "1.3.0",
+  "yanked": false,
+  "yanked_reason": null
+ },
+ "last_serial": 32483222,
+ "ownership": {
+  "organization": null,
+  "roles": [
+   {
+    "role": "Owner",
+    "user": "huynguyengl99"
+   }
+  ]
+ },
+ "releases": {},
+ "urls": [
+  {
+   "comment_text": null,
+   "core-metadata": {
+    "sha256": "0ea80bcc5a123dcc921a20e6c15e113904ec210375030453ceb809bc126ee2b1"
+   },
+   "digests": {
+    "blake2b_256": "4ebfbe795179c906b64e06a1ccadd4fd2983a3488dc002fd1a2dc797291ccd5a",
+    "md5": "c59bf5af55cd3fdf668240e4083a35b0",
+    "sha256": "da9c266717f90a36d849f49236b1b9f70668b8d2207b6d5c8dcb7baf1b77cc74"
+   },
+   "downloads": -1,
+   "filename": "django_headless_cms-1.3.0-py3-none-any.whl",
+   "has_sig": false,
+   "md5_digest": "c59bf5af55cd3fdf668240e4083a35b0",
+   "packagetype": "bdist_wheel",
+   "python_version": "py3",
+   "requires_python": "<4.0,>=3.10",
+   "size": 72277,
+   "upload_time": "2025-11-19T03:35:22",
+   "upload_time_iso_8601": "2025-11-19T03:35:22.479622Z",
+   "url": "https://files.pythonhosted.org/packages/4e/bf/be795179c906b64e06a1ccadd4fd2983a3488dc002fd1a2dc797291ccd5a/django_headless_cms-1.3.0-py3-none-any.whl",
+   "yanked": false,
+   "yanked_reason": null
+  }
+ ],
+ "vulnerabilities": []
+}
