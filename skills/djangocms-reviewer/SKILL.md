@@ -36,9 +36,22 @@ cms-visible behavior: page rendering, placeholder content, menu output.
 
 ### Page Tree Operations
 
-- Use `create_page(title, template, language="en-us", ...)` with correct CMS 5.x API.
+- Use `create_page(title, template, language=..., ...)` with correct CMS 5.x API. The language must be a code in the project's `LANGUAGES`/`CMS_LANGUAGES` (`"en"` and `"en-us"` are not interchangeable); check `settings.py` before flagging a language code as wrong.
+- Pass `in_navigation=True` for pages meant for menus; `created_by=None` crashes on a database with no superuser.
 - Access slugs via `PageUrl.objects.get(slug=slug).page`, not `Page.slug`.
 - Use `PageContent` for language-specific template changes.
+
+### Apphooks
+
+- `CMSApp.app_name` must match `app_name` in the app's `urls.py`, and `create_page` needs `apphook_namespace=`; otherwise `{% url %}` raises `NoReverseMatch`.
+- `cms.middleware.utils.ApphookReloadMiddleware` must be in `MIDDLEWARE`.
+- Tests that create or change apphook pages must call `reload_urlconf()` (`cms.utils.apphook_reload`), because the urlconf is cached.
+
+### Seed Scripts and Data Commands
+
+- Idempotency should key on `PageUrl(slug=..., language=...)`, not on title (titles are not unique, so a user page can be silently adopted).
+- Each page's create, plugin and homepage work belongs in one `transaction.atomic()`; otherwise a failed `add_plugin` leaves an empty page that later runs skip. `set_as_homepage()` must be inside `atomic()`.
+- Hardcoded placeholder slot names should match the template, with a clear error if missing.
 
 ### Placeholders
 
