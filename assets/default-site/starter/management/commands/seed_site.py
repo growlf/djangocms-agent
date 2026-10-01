@@ -17,7 +17,9 @@ from PIL import Image as PILImage
 from PIL import ImageDraw
 
 from starter.constants import CONTENT_SLOT
-from starter.seeding import LANG, admin_content, ensure_page, ensure_site, get_user, page_for, placeholder, publish
+from starter.seeding import (
+    LANG, editable_content, ensure_page, ensure_site, get_user, page_for, placeholder, publish, slot_is_empty,
+)
 
 TEXT = "TextPlugin"
 HTML = "HtmlBlockPlugin"
@@ -280,27 +282,31 @@ class Command(BaseCommand):
             raise CommandError("Run seed_pages first.")
 
         with transaction.atomic():
-            about, _ = ensure_page("about", "About", "standard.html", user, after=home)
-            self._fill(about, {CONTENT_SLOT: [plain_spec(*s) for s in ABOUT], "sidebar": [plain_spec(*s) for s in ABOUT_SIDEBAR]})
+            about, _ = ensure_page("about", "About", "standard.html", user, after=home, reverse_id="about")
+            self._fill(about, {CONTENT_SLOT: [plain_spec(*s) for s in ABOUT], "sidebar": [plain_spec(*s) for s in ABOUT_SIDEBAR]}, user)
             publish(about, user)
 
         with transaction.atomic():
-            style, _ = ensure_page("style-and-capabilities", "Style & Capabilities", "standard.html", user, after=page_for("about"))
-            self._fill(style, {CONTENT_SLOT: style_specs(user, about.pk), "sidebar": [plain_spec(TEXT, {"body": STYLE_SIDEBAR})]})
+            style, _ = ensure_page("style-and-capabilities", "Style & Capabilities", "standard.html", user,
+                                   after=page_for("about"), reverse_id="style-and-capabilities")
+            self._fill(style, {CONTENT_SLOT: style_specs(user, about.pk), "sidebar": [plain_spec(TEXT, {"body": STYLE_SIDEBAR})]}, user)
             publish(style, user)
 
         with transaction.atomic():
-            content = admin_content(home)
-            if content.template != "landing.html":
-                content.template = "landing.html"
-                content.save(update_fields=["template"])
-            self._fill(home, {slot: [plain_spec(*s) for s in specs] for slot, specs in landing_specs(style.pk, about.pk).items()})
+            ensure_page("home", "Home", "landing.html", user)  # re-points the template through a draft when needed
+            self._fill(home, {slot: [plain_spec(*s) for s in specs] for slot, specs in landing_specs(style.pk, about.pk).items()}, user)
             publish(home, user)
 
         self.stdout.write("seeded site")
 
-    def _fill(self, page, slots):
-        """Fill each empty slot (idempotent; --reset clears first). Specs are (type, data, children) tuples."""
+    def _fill(self, page, slots, user):
+        """Fill each empty slot (idempotent; --reset clears first). Specs are (type, data, children) tuples.
+
+        Respects versioning: when anything has to change on already-published content, a draft is
+        created first and the caller publishes it afterwards (publish() is a no-op without a draft)."""
+        if not self.reset and all(not slot_is_empty(page, slot) for slot in slots):
+            return
+        editable_content(page, user)
         for slot, specs in slots.items():
             ph = placeholder(page, slot)
             if self.reset:

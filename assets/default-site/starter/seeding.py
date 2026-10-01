@@ -3,9 +3,14 @@
 djangocms-versioning is installed, so create_page() produces a DRAFT. Every helper here works on
 the admin (draft-aware) manager and publishes at the end, so seeding stays idempotent:
 a page is looked up by PageUrl(slug, language), not by title.
+
+Versioning is respected: published content is never edited in place. When something has to change
+on a page that is already published (a template re-point, a refilled placeholder), a new draft is
+created first (editable_content), changed, and then published. Pages that need no change get no new
+version, so a repeated run adds nothing.
 """
 from cms.api import add_plugin, create_page
-from cms.models import PageContent, PageUrl, Placeholder
+from cms.models import Page, PageContent, PageUrl, Placeholder
 from django.contrib.auth import get_user_model
 from django.core.management.base import CommandError
 from djangocms_versioning import constants as vc
@@ -46,6 +51,25 @@ def admin_content(page):
     return PageContent.admin_manager.current_content().get(page=page, language=LANG)
 
 
+def editable_content(page, user):
+    """The page's DRAFT content, creating one first when the current content is published
+    (or has no version yet). Never returns published content for editing."""
+    content = admin_content(page)
+    version = content.versions.first()
+    if version is None:  # content that predates djangocms-versioning
+        Version.objects.create(content=content, created_by=user)
+        return content
+    if version.state == vc.DRAFT:
+        return content
+    return version.copy(user).content
+
+
+def slot_is_empty(page, slot):
+    """True when the slot has no plugins (a slot that does not exist yet counts as empty)."""
+    ph = Placeholder.objects.get_for_obj(admin_content(page)).filter(slot=slot).first()
+    return ph is None or not ph.get_plugins(LANG).exists()
+
+
 def placeholder(page, slot):
     content = admin_content(page)
     content.rescan_placeholders()  # creates slots that are new to the template
@@ -56,18 +80,21 @@ def placeholder(page, slot):
 
 
 def ensure_page(slug, title, template, user, parent=None, apphook=None, apphook_namespace=None,
-                after=None, menu_title=None):
+                after=None, menu_title=None, in_navigation=True, reverse_id=None):
     """Create the page when missing; re-point its template when it changed. Returns (page, created)."""
     page = page_for(slug)
     if page is not None:
-        content = admin_content(page)
-        if content.template != template:
+        if reverse_id and not page.reverse_id and not Page.objects.filter(reverse_id=reverse_id, node__site=page.node.site).exists():
+            page.reverse_id = reverse_id  # lets templates link with {% page_url "reverse_id" %} instead of a hard-coded path
+            page.save(update_fields=["reverse_id"])
+        if admin_content(page).template != template:
+            content = editable_content(page, user)
             content.template = template
             content.save(update_fields=["template"])
         return page, False
     page = create_page(
-        title, template, LANG, slug=slug, menu_title=menu_title, parent=parent, in_navigation=True,
-        apphook=apphook, apphook_namespace=apphook_namespace, created_by=user,
+        title, template, LANG, slug=slug, menu_title=menu_title, parent=parent, in_navigation=in_navigation,
+        apphook=apphook, apphook_namespace=apphook_namespace, created_by=user, reverse_id=reverse_id,
     )
     if after is not None:
         page.move_page(after, position="right")

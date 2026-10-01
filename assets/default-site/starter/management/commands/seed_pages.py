@@ -18,7 +18,7 @@ class Command(BaseCommand):
         user = get_user()
         for i, (title, slug, template) in enumerate(PAGES):
             with transaction.atomic():
-                page, _ = ensure_page(slug, title, template, user)
+                page, _ = ensure_page(slug, title, template, user, reverse_id=slug)
                 if i == 0 and not page.is_home:
                     page.set_as_homepage()
                 publish(page, user)

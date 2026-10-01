@@ -13,7 +13,7 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.db import transaction
 from django.test import TestCase, override_settings
-from djangocms_versioning.constants import PUBLISHED
+from djangocms_versioning.constants import DRAFT, PUBLISHED
 from djangocms_versioning.models import Version
 
 from starter.seeding import ensure_page, get_user, publish
@@ -63,7 +63,7 @@ class SeedTests(TestCase):
 
     def test_everything_is_published(self):
         seed()
-        self.assertFalse(Version.objects.exclude(state=PUBLISHED).exists())
+        self.assertFalse(Version.objects.filter(state=DRAFT).exists())  # older versions are archived, nothing stays a draft
         for slug in SLUGS:
             self.assertEqual(self.client.get("/" if slug == "home" else f"/{slug}/").status_code, 200, slug)
 
@@ -76,15 +76,107 @@ class SeedTests(TestCase):
         self.assertTrue({"hero", "feature_1", "feature_2", "feature_3", "content", "cta"} <= slots)
 
     def test_reset_refills_without_duplicating(self):
+        from cms.models import PageContent, Placeholder
+
+        def live_plugins():  # plugins on the PUBLISHED content (archived versions keep their own copies)
+            return sum(ph.get_plugins("en").count() for c in PageContent.objects.all()
+                       for ph in Placeholder.objects.get_for_obj(c))
         seed()
-        before = CMSPlugin.objects.count()
+        before = live_plugins()
         call_command("seed_site", "--reset", stdout=StringIO())
-        self.assertEqual(before, CMSPlugin.objects.count())
+        self.assertEqual(before, live_plugins())
+        self.assertFalse(Version.objects.filter(state=DRAFT).exists())
 
     def test_get_user_returns_real_user_when_no_superuser(self):
         user = get_user()
         self.assertIsNotNone(user.pk)
         self.assertFalse(user.is_active)
+
+
+@override_settings(MEDIA_ROOT=_MEDIA)
+class SeedVersioningTests(TestCase):
+    """Seeding goes through djangocms-versioning: published content is never edited in place."""
+
+    def versions(self, slug):
+        from cms.models import PageContent
+        page = PageUrl.objects.get(slug=slug, language="en").page
+        contents = PageContent.admin_manager.filter(page=page, language="en")
+        return sorted(((v.pk, v.state, v.content) for c in contents for v in c.versions.all()), key=lambda t: t[0])
+
+    def plugin_count(self, content):
+        from cms.models import Placeholder
+        return sum(ph.get_plugins("en").count() for ph in Placeholder.objects.get_for_obj(content))
+
+    def test_plugins_are_added_to_a_draft_and_published_once(self):
+        seed()
+        for slug in SLUGS:
+            states = [(state, self.plugin_count(content)) for _pk, state, content in self.versions(slug)]
+            self.assertEqual([s for s, _ in states].count(PUBLISHED), 1, slug)
+            self.assertNotIn(DRAFT, [s for s, _ in states], slug)
+            self.assertGreater(states[-1][1], 0, slug)
+        # seed_pages published the empty home page first; seed_site filled a NEW draft, so the first
+        # (now archived) version stays empty: nothing was added to published content.
+        home = [(state, self.plugin_count(content)) for _pk, state, content in self.versions("home")]
+        self.assertEqual(home[0][1], 0)
+        self.assertEqual(home[-1][0], PUBLISHED)
+
+    def test_second_run_adds_no_versions(self):
+        seed()
+        before = Version.objects.count()
+        seed()
+        self.assertEqual(before, Version.objects.count())
+
+    def test_refill_after_editor_emptied_slot_uses_a_new_draft(self):
+        from cms.models import Placeholder
+        seed()
+        pub = [c for _pk, st, c in self.versions("about") if st == PUBLISHED][0]
+        draft = pub.versions.first().copy(get_user()).content  # what an editor does
+        for ph in Placeholder.objects.get_for_obj(draft):
+            ph.clear("en")
+        draft.versions.first().publish(get_user())
+        n = Version.objects.count()
+        call_command("seed_site", stdout=StringIO())
+        self.assertEqual(Version.objects.count(), n + 1)
+        edited = [c for _pk, st, c in self.versions("about") if c.pk == draft.pk][0]
+        self.assertEqual(self.plugin_count(edited), 0)  # the editor's version was not touched
+        self.assertGreater(self.plugin_count([c for _pk, st, c in self.versions("about") if st == PUBLISHED][0]), 0)
+
+    def test_template_change_on_published_page_goes_through_a_draft(self):
+        seed()
+        user = get_user()
+        page = PageUrl.objects.get(slug="about", language="en").page
+        ensure_page("about", "About", "landing.html", user)
+        states = {st: c.template for _pk, st, c in self.versions("about")}
+        self.assertEqual(states[DRAFT], "landing.html")
+        self.assertEqual(states[PUBLISHED], "standard.html")  # live content untouched until published
+        publish(page, user)
+        self.assertEqual(self.client.get("/about/").status_code, 200)
+
+    def test_seed_first_run_only(self):
+        out = StringIO()
+        call_command("seed", "--first-run-only", stdout=out)
+        self.assertEqual(Page.objects.count(), len(SLUGS))
+        n = Version.objects.count()
+        out = StringIO()
+        call_command("seed", "--first-run-only", stdout=out)
+        self.assertIn("not seeding", out.getvalue())
+        self.assertEqual(n, Version.objects.count())
+
+    def test_first_run_only_does_not_refill_a_slot_the_editor_emptied(self):
+        from cms.models import Placeholder
+        call_command("seed", "--first-run-only", stdout=StringIO())
+        pub = [c for _pk, st, c in self.versions("about") if st == PUBLISHED][0]
+        draft = pub.versions.first().copy(get_user()).content
+        for ph in Placeholder.objects.get_for_obj(draft):
+            ph.clear("en")
+        draft.versions.first().publish(get_user())
+        n = Version.objects.count()
+        call_command("seed", "--first-run-only", stdout=StringIO())
+        self.assertEqual(Version.objects.count(), n)
+
+    def test_pages_get_reverse_ids(self):
+        seed()
+        self.assertEqual(set(Page.objects.exclude(reverse_id=None).values_list("reverse_id", flat=True)), set(SLUGS))
 
 
 @override_settings(MEDIA_ROOT=_MEDIA)
@@ -155,6 +247,8 @@ class ThemeTests(TestCase):
             publish(grandchild, user)
         r = self.client.get("/")
         self.assertContains(r, 'data-bs-toggle="dropdown"', count=1)
+        self.assertContains(r, '<button type="button" class="nav-link dropdown-toggle', count=1)  # a real button: Space/Enter
+        self.assertNotContains(r, 'role="button"')
         self.assertContains(r, 'class="dropdown-menu"', count=1)
         self.assertContains(r, "Grandchild")
         self.assertContains(r, "ps-4")
