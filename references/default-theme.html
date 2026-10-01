@@ -1,45 +1,36 @@
-{% load cms_tags sekizai_tags menu_tags static %}
-<!DOCTYPE html>
+{% load cms_tags menu_tags sekizai_tags static %}<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="{% page_attribute "meta_description" %}">
-    <title>{% page_attribute "page_title" %} | {{ site_name }}</title>
-    <link rel="stylesheet" href="{% static 'css/netyeti.css' %}">
-    {% render_block "css" %}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{% page_attribute "page_title" %} | {{ site_name }}</title>
+  <link rel="stylesheet" href="{% static 'css/site.css' %}">
+  {% render_block "css" %}
 </head>
-<body class="cms cms-home">
-    {% cms_toolbar %}
-    
-    <header class="site-header">
-        <div class="container">
-            <nav class="site-nav" aria-label="Main navigation">
-                <a href="/" class="site-logo">{{ site_name }}</a>
-                {% show_menu %}
-            </nav>
-        </div>
-    </header>
-    
-    <main class="site-main">
-        <div class="container">
-            <div class="content-sidebar">
-                <div class="content">
-                    {% placeholder "content" %}
-                </div>
-                <aside class="sidebar">
-                    {% placeholder "sidebar" %}
-                </aside>
-            </div>
-        </div>
-    </main>
-    
-    <footer class="site-footer">
-        <div class="container">
-            <p>&copy; {% now "Y" %} {{ site_name }}. All rights reserved.</p>
-        </div>
-    </footer>
-    
-    {% render_block "js" %}
+<body class="{% block body_class %}layout-single{% endblock %}">
+  {% cms_toolbar %}
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="container site-header-inner">
+      <a href="/" class="site-logo">{{ site_name }}</a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <ul class="menu">{% show_menu 0 100 100 100 "menu/menu.html" %}</ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="site-main">
+    <div class="container">
+      {% block main %}<div class="content">{% placeholder "content" %}</div>{% endblock %}
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; {% now "Y" %} {{ site_name }}</p>
+    </div>
+  </footer>
+  {% render_block "js" %}
 </body>
 </html>

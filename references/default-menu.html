@@ -1,0 +1,9 @@
+{% load menu_tags %}{% for child in children %}
+<li class="menu-item{% if child.children %} has-children{% endif %}{% if child.selected %} selected{% endif %}{% if child.ancestor %} ancestor{% endif %}{% if child.descendant %} descendant{% endif %}">
+  <a href="{{ child.attr.redirect_url|default:child.get_absolute_url }}"{% if child.selected %} aria-current="page"{% endif %}>{{ child.get_menu_title }}</a>
+  {% if child.children %}
+  <ul class="submenu">
+    {% show_menu from_level to_level extra_inactive extra_active template "" "" child %}
+  </ul>
+  {% endif %}
+</li>{% endfor %}
