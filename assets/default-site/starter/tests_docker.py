@@ -232,16 +232,21 @@ class ProxySecurityTests(SimpleTestCase):
         r = settings_in_subprocess({'DJANGO_HSTS_SECONDS': '3600'}, "s.SECURE_HSTS_SECONDS")
         self.assertEqual(r, 0)
 
+
+class HealthRedirectExemptTests(TestCase):
+    """With the proxy settings and SSL redirect on, /health/ still answers over plain http (the container
+    healthcheck talks to gunicorn directly) while other URLs redirect to https. Runs in-process on the test
+    database, so it needs no migrated development database."""
+
     def test_health_is_exempt_from_the_https_redirect(self):
         from django.test import Client
-        code = ("import django; django.setup(); from django.test import Client; "
-                "c = Client(); print(c.get('/health/').status_code, c.get('/admin/login/').status_code)")
-        env = {k: v for k, v in os.environ.items() if not k.startswith(('DB_', 'DJANGO_'))}
-        env.update({'DJANGO_SECRET_KEY': 'x', 'DJANGO_ALLOWED_HOSTS': 'testserver', 'DJANGO_BEHIND_PROXY': '1',
-                    'DJANGO_SSL_REDIRECT': '1', 'DJANGO_SETTINGS_MODULE': '__PROJECT_NAME__.settings'})
-        out = subprocess.run([sys.executable, '-c', code], env=env, cwd=BASE, capture_output=True, text=True)
-        self.assertEqual(out.returncode, 0, out.stderr)
-        self.assertEqual(out.stdout.split()[-2:], ['200', '301'])  # /health/ answers, everything else redirects to https
+        exempt = settings_in_subprocess({'DJANGO_BEHIND_PROXY': '1', 'DJANGO_SSL_REDIRECT': '1'}, "s.SECURE_REDIRECT_EXEMPT")
+        with override_settings(SECURE_SSL_REDIRECT=True, SECURE_REDIRECT_EXEMPT=exempt):
+            client = Client()  # built after the override: the middleware reads the settings when it is loaded
+            self.assertEqual(client.get('/health/').status_code, 200)
+            r = client.get('/admin/login/')
+            self.assertEqual(r.status_code, 301)
+            self.assertTrue(r['Location'].startswith('https://'))
 
 
 class AllowedHostsTests(SimpleTestCase):
