@@ -17,6 +17,7 @@ docs:
   - references/project-setup.md
   - references/templates-and-theme.md
   - references/plugins.md
+  - references/new-site.md
 trust:
   bash: ask
   tool_deny: []

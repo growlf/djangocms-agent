@@ -52,6 +52,21 @@ python scripts/visual_check.py http://localhost:8000/ --login admin:DJANGO_PASS
 Exit code 0 = no issues, 1 = issues found, 2 = script/browser error.
 If you cannot view images, rely on the printed text and exit code; do not claim visual confirmation.
 
+## Create a new site
+
+```bash
+python3 bin/new-site.py --name "Acme Garden Club" --purpose "Member news and events" --parent-dir ~/Projects
+```
+
+Builds the full default site in a new folder: Bootstrap 5 theme (landing, About, Style & Capabilities),
+plugins, versioning, DEBUG-only debug toolbar, admindocs, FOSS files (LICENSE, CODE_OF_CONDUCT,
+CONTRIBUTING, SECURITY, issue/PR templates, AGENTS.md + CLAUDE.md recording the purpose), an OpsKit
+`.opskit/pack.yml`, a venv with pinned requirements, migrated and seeded database, an `admin` user with a
+random password printed once, a git repo, and `bin/verify.sh` (check, migrations, tests, seed idempotency,
+Playwright screenshots desktop + mobile). Name and purpose must come from the human; `--dry-run` shows the
+plan. Exit codes 0 ok, 1 step failed, 2 usage error. Full reference: `references/new-site.md`.
+Tests: `python3 -m pytest tests/`.
+
 ## Installation
 
 ### Recommended: the installer
