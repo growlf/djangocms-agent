@@ -142,6 +142,23 @@ class TestInstall(unittest.TestCase):
         result = self._run("--project", str(self.project_dir), "doctor")
         self.assertEqual(result.returncode, 2)
 
+    def test_doctor_behind(self):
+        """doctor should exit 1 and print BEHIND when lockfile sha differs."""
+        # Install first
+        result = self._run("--project", str(self.project_dir), "--copy", "--hosts", "claude,opencode")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        # Tamper with the lockfile to make it appear behind
+        import json as _json
+        lock_path = self.project_dir / ".djangocms-agent.lock"
+        data = _json.loads(lock_path.read_text())
+        data["git_sha"] = "abcdef0"  # fake old sha
+        lock_path.write_text(_json.dumps(data))
+
+        result = self._run("--project", str(self.project_dir), "doctor")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("BEHIND", result.stdout)
+
     def test_dry_run_no_claude_dir(self):
         """--dry-run should not create .claude directory."""
         result = self._run("--project", str(self.project_dir), "--dry-run")
