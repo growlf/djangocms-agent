@@ -1,0 +1,54 @@
+# Contributing to {{SITE_NAME}}
+
+Thanks for considering a contribution — bug reports, docs fixes, and code
+are all welcome.
+
+## Before you start
+
+- Check open issues and PRs first so you don't duplicate work in flight.
+- For anything larger than a small fix (a new feature, a breaking change,
+  a significant refactor), open an issue to discuss the approach *before*
+  writing the code. It saves everyone a rewrite.
+- Read `AGENTS.md` if you're using an AI coding agent to help — it has
+  project-specific conventions the agent should follow, and governance
+  rules about what an agent should and shouldn't do unilaterally in this
+  repo.
+
+## Making a change
+
+1. Fork the repo and create a branch from the default branch.
+2. Make your change, following the conventions in `AGENTS.md`.
+3. Add or update tests for anything behavioral.
+4. Run `bin/verify.sh` and make sure it passes. It checks the project, migrations, tests,
+   seed idempotency and (when Playwright is installed) takes screenshots of key pages.
+   Look at the screenshots for any change that affects how a page looks.
+5. Open a pull request with a clear description of *what* changed and
+   *why* — link the related issue if there is one.
+
+## Commit messages
+
+Clear, present-tense, one logical change per commit where practical.
+Conventional Commits (`feat:`, `fix:`, `docs:`, ...) are welcome but not
+required.
+
+## Review process
+
+This project currently has a single maintainer. Reviews happen as time
+allows — please be patient, and feel free to ping the issue/PR after a
+week or two of silence.
+
+## Reporting bugs and requesting features
+
+Please use the issue templates — they ask for the information that's
+usually needed to act on a report, and filling them in gets you a faster
+response.
+
+## Code of Conduct
+
+This project follows the `CODE_OF_CONDUCT.md` in this repo. By
+participating, you're agreeing to abide by it.
+
+## License
+
+By contributing, you agree that your contributions will be licensed under
+this project's license (`{{LICENSE_SPDX}}`, see `LICENSE`).

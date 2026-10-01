@@ -53,11 +53,16 @@ This single skill covers pages, placeholders, templates, plugins, admin, middlew
 
 - **Project setup** (TEMPLATES, MIDDLEWARE, X-Frame, toolbar, versioning, admindocs, debug toolbar, production hardening): read `references/project-setup.md` only when creating or fixing `settings.py` / `urls.py`.
 - **Templates & themes** (Bootstrap default theme, template structure, menu, what was verified): read `references/templates-and-theme.md` only when creating or editing templates.
+- **New site scaffolder** (name/purpose questions, flags, verify.sh, what is generated): read `references/new-site.md` when asked to create a site.
 - **Plugin compatibility** (works / fails matrix, bootstrap5 caveats, transitive pins): read `references/plugins.md` only when adding or changing CMS plugins.
+
+## New site (the one workflow to follow)
+
+When asked to create a new DjangoCMS site: (1) **ask the human for the site name and its general purpose; never guess them**; (2) run `bin/new-site.py --name ... --purpose ...` (from an installed skill: `<skills dir>/djangocms-agent/bin/new-site.py`); (3) run the generated `bin/verify.sh` and **look at the screenshots** in `verify-shots/`; (4) report honestly what was and was not verified (`VERIFY RESULT: INCOMPLETE` means no visual check happened), with the URL and port, and only then tell the user to look. Details, flags, exit codes: `references/new-site.md`. The script never runs `opskit` commands; OpsKit integration is just the generated `.opskit/pack.yml`.
 
 ## Default site
 
-A complete, verified Bootstrap 5 site (templates, static, `starter` app with seed commands, settings, urls, pinned requirements) is in `assets/default-site/` (see its `README.md`). Build new sites from it rather than from memory; it carries the settings and gotchas above already worked out. Theme docs: `references/templates-and-theme.md`.
+The site it installs is in `assets/default-site/` (see its `README.md`): a complete, verified Bootstrap 5 site (templates, static, `starter` app with seed commands, settings, urls, pinned requirements). Use it rather than memory; it carries the settings and gotchas above already worked out. Theme docs: `references/templates-and-theme.md`.
 
 ## CMS Gotchas (from TheNetYeti)
 

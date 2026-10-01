@@ -1,0 +1,35 @@
+# {{SITE_NAME}}
+
+{{PURPOSE}}
+
+A DjangoCMS 5 site (Bootstrap 5.3, light/dark mode, mobile friendly) scaffolded by the
+`djangocms-agent` skill. It ships a landing page, an About page and a "Style & Capabilities" page that
+renders every verified plugin.
+
+## Quick start
+
+    python3 -m venv venv
+    venv/bin/pip install -r requirements.txt
+    export DJANGO_DEBUG=1 DJANGO_SECRET_KEY=dev
+    venv/bin/python manage.py migrate
+    venv/bin/python manage.py createsuperuser
+    venv/bin/python manage.py seed_pages
+    venv/bin/python manage.py seed_site
+    venv/bin/python manage.py runserver 8010
+
+Open http://localhost:8010/ and sign in at http://localhost:8010/admin/. Edit pages by adding
+`?edit` to a URL while logged in. `DJANGO_DEBUG=1` is development only; production needs
+`DJANGO_SECRET_KEY` and `DJANGO_ALLOWED_HOSTS` (see `.env.example`).
+
+## Verify
+
+    bin/verify.sh
+
+Runs `check`, `makemigrations --check`, the tests, seed idempotency, and Playwright screenshots
+(desktop and mobile) of the main pages into `verify-shots/`. Look at them. Requires
+`pip install playwright && playwright install chromium` for the visual step.
+
+## Project documents
+
+`AGENTS.md` (instructions for AI agents), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `LICENSE`
+({{LICENSE_SPDX}}).

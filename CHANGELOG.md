@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added (new-site scaffolder)
+- `bin/new-site.py` (stdlib, Python 3.12+): `--name`, `--purpose`, `--site-name`, `--parent-dir`, `--license`, `--author`, `--no-venv`/`--skip-install`, `--no-opskit`, `--dry-run`, `--yes`. Name and purpose are required from the human (interactive prompt on a TTY, exit 2 otherwise). Validates names, never overwrites, refuses a non-empty target. Writes the default site with `__PROJECT_NAME__`/`__SITE_NAME__` substituted in contents and paths, wsgi/asgi/`__init__`, FOSS files, AGENTS.md + thin CLAUDE.md with the purpose, README, `.opskit/pack.yml` (file only, no opskit command), `scripts/visual_check.py`, `bin/verify.sh`; then venv, install, migrate, `admin` superuser with a random one-time password, seed, `git init` + first commit.
+- `assets/foss/`: governance templates (from the foss-init conventions) and licenses MIT, ISC, BSD-3-Clause, Unlicense; `assets/default-site/.env.example`.
+- Generated `bin/verify.sh`: check, `makemigrations --check` for own apps, tests, seed idempotency, Playwright `visual_check.py` desktop + mobile on key URLs; ends with `VERIFY RESULT: PASS|FAIL|INCOMPLETE`.
+- `references/new-site.md` and the "New site" workflow in `SKILL.md` and `agents/djangocms-agent.md`: ask for name and purpose, scaffold, verify and look at screenshots, report honestly.
+- `skills/djangocms-agent/bin` symlink so the scaffolder is reachable from link and copy installs (tested).
+- `tests/test_new_site.py`.
+
+### Fixed
+- `assets/default-site/settings_fragment.py` now includes `LocaleMiddleware` after `SessionMiddleware` (as `references/project-setup.md` says); both settings and urls fragment docstrings no longer mention scaffold placeholders.
+
 ### Added
 - `assets/default-site/`: a complete, copyable Bootstrap 5.3 default site ported from the verified testsite build: templates (base, landing, standard, menu), static (site.css, theme.js, vendored Bootstrap 5.3.3 with its MIT LICENSE), a `starter` app (generic trusted-editors-only `HtmlBlock` plugin, `seeding.py`, idempotent `seed_pages`/`seed_site`, 20 tests), `settings_fragment.py`, `urls_fragment.py`, context processor, pinned `requirements.txt`. Project-specific tokens are `__PROJECT_NAME__` and `__SITE_NAME__` (a scaffold script is a later change). Testsite-only parts (testlog app, findings text) were removed and `CMS_PLACEHOLDER_CONF` now names `feature_1..3`.
 - `skills/djangocms-agent/assets` symlink so installed skills (link and copy modes) can read the assets; installer tests cover both modes, doctor and uninstall.

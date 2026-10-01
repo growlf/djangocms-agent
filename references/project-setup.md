@@ -48,7 +48,7 @@ MIDDLEWARE = [
     "cms.middleware.language.LanguageCookieMiddleware",
 ]
 ```
-The default site's `MIDDLEWARE` (`assets/default-site/settings_fragment.py`) lists the cms middleware before `XFrameOptionsMiddleware` and omits `LocaleMiddleware` (single-language site); both orders work. Verified 2026-10-01 on cms 5.1.3 / Django 5.2.17: `manage.py check` clean, four published pages return 200, logged-in users get the toolbar markup, responses carry `X-Frame-Options: SAMEORIGIN`. An earlier scratch project that listed only sessions, common, csrf, auth, messages and the four `cms.middleware.*` entries also booted and rendered, which is why this gap went unnoticed: it had no `SecurityMiddleware`, no clickjacking header, no locale handling and no apphook reload. Do not omit the stock Django entries.
+The default site's `MIDDLEWARE` (`assets/default-site/settings_fragment.py`) includes `LocaleMiddleware` in the position shown above (after sessions, before common) and lists the cms middleware before `XFrameOptionsMiddleware`; both cms/clickjacking orders work. Verified 2026-10-01 on cms 5.1.3 / Django 5.2.17: `manage.py check` clean, four published pages return 200, logged-in users get the toolbar markup, responses carry `X-Frame-Options: SAMEORIGIN`. An earlier scratch project that listed only sessions, common, csrf, auth, messages and the four `cms.middleware.*` entries also booted and rendered, which is why this gap went unnoticed: it had no `SecurityMiddleware`, no clickjacking header, no locale handling and no apphook reload. Do not omit the stock Django entries.
 
 ### X-Frame-Options (for CMS toolbar)
 ```python
