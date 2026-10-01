@@ -275,7 +275,9 @@ class ComposeWiringTests(SimpleTestCase):
 
     def test_documented_env_vars_are_passed(self):
         for name in ('DJANGO_BEHIND_PROXY', 'DJANGO_CACHE', 'DJANGO_HSTS_SECONDS', 'DJANGO_HSTS_INCLUDE_SUBDOMAINS',
-                     'DJANGO_SSL_REDIRECT', 'SEED_ON_START', 'GUNICORN_WORKERS', 'GOOGLE_MAPS_API_KEY'):
+                     'DJANGO_SSL_REDIRECT', 'SEED_ON_START', 'GUNICORN_WORKERS', 'GOOGLE_MAPS_API_KEY',
+                     'DJANGO_PROXY_COUNT', 'DJANGO_LOGIN_FAILURE_LIMIT', 'DJANGO_LOGIN_COOLOFF_MINUTES',
+                     'DJANGO_LOGIN_LOCKOUT_BY'):
             self.assertIn(f'{name}: ${{{name}', self.compose)
 
     def test_env_example_documents_create_versions(self):

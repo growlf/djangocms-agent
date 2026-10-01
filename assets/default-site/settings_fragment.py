@@ -7,6 +7,7 @@ Not set on purpose: CMS_TOOLBAR_REQUIRE_SUPERUSER and ANONYMOUS_EDIT do not exis
 
 import importlib.util
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -84,6 +85,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.sites',
     'django.contrib.admindocs',  # /admin/docs/ (needs docutils; see urls_fragment.py)
+    'axes',  # login throttling (django-axes); see the LOGIN THROTTLING block below
     # Content plugins and workflow. Only plugins verified to pass check + migrate + render on
     # cms 5.1.3 / Django 5.2 are listed; see references/plugins.md for the ones that fail.
     'filer',
@@ -128,6 +130,7 @@ MIDDLEWARE = [
     'cms.middleware.toolbar.ToolbarMiddleware',
     'cms.middleware.language.LanguageCookieMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'axes.middleware.AxesMiddleware',  # django-axes docs: last; turns a lockout into the 429 page
 ]
 
 # django-debug-toolbar: development only (requirements-dev.txt; the production image does not contain
@@ -154,6 +157,54 @@ if USE_DEBUG_TOOLBAR:
 
 def show_toolbar_to_everyone(request):
     return True
+
+
+# --- Login throttling (django-axes 8.3.1) -----------------------------------------------------
+
+# Failed logins (admin / CMS login, any authenticate() call that has a request) are counted in the
+# database (axes' default AxesDatabaseHandler: shared by all gunicorn workers, works with SQLite and
+# PostgreSQL, no cache or Redis needed). After DJANGO_LOGIN_FAILURE_LIMIT failures (default 5) the
+# username + client IP pair is locked for DJANGO_LOGIN_COOLOFF_MINUTES (default 60; 0 = until an
+# operator unlocks: `manage.py axes_reset`). While locked even the right password is refused and the
+# user sees a 429 page. A successful login clears the counter. DJANGO_LOGIN_FAILURE_LIMIT=0 turns the
+# whole thing off. DJANGO_LOGIN_LOCKOUT_BY=ip_username (default) | ip (every user behind one IP shares the
+# counter; stricter, but one attacker can lock out everyone behind the same address).
+# The client IP is REMOTE_ADDR unless DJANGO_BEHIND_PROXY=1 (see __PROJECT_NAME__/security.py): a
+# client-sent X-Forwarded-For is never trusted without it.
+
+
+def _env_int(name, default):
+    raw = os.environ.get(name, '').strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        raise ImproperlyConfigured(f'{name} must be a whole number, got {raw!r}.') from None
+    if value < 0:
+        raise ImproperlyConfigured(f'{name} must not be negative.')
+    return value
+
+
+LOGIN_FAILURE_LIMIT = _env_int('DJANGO_LOGIN_FAILURE_LIMIT', 5)
+LOGIN_COOLOFF_MINUTES = _env_int('DJANGO_LOGIN_COOLOFF_MINUTES', 60)
+PROXY_COUNT = max(_env_int('DJANGO_PROXY_COUNT', 1), 1)  # proxies in front of the app (X-Forwarded-For hops)
+_lockout_by = os.environ.get('DJANGO_LOGIN_LOCKOUT_BY', 'ip_username').strip().lower() or 'ip_username'
+if _lockout_by not in ('ip_username', 'ip'):
+    raise ImproperlyConfigured("DJANGO_LOGIN_LOCKOUT_BY must be 'ip_username' or 'ip'.")
+
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',  # must be first: refuses logins while locked out
+    'django.contrib.auth.backends.ModelBackend',
+]
+AXES_ENABLED = LOGIN_FAILURE_LIMIT > 0
+AXES_FAILURE_LIMIT = max(LOGIN_FAILURE_LIMIT, 1)
+AXES_COOLOFF_TIME = timedelta(minutes=LOGIN_COOLOFF_MINUTES) if LOGIN_COOLOFF_MINUTES else None
+AXES_LOCKOUT_PARAMETERS = ['ip_address'] if _lockout_by == 'ip' else [['username', 'ip_address']]
+AXES_RESET_ON_SUCCESS = True
+AXES_NEVER_LOCKOUT_GET = True  # a locked client can still browse the site (only the login POST is refused)
+AXES_CLIENT_IP_CALLABLE = '__PROJECT_NAME__.security.client_ip'
+AXES_LOCKOUT_CALLABLE = '__PROJECT_NAME__.security.lockout_response'
 
 
 ROOT_URLCONF = '__PROJECT_NAME__.urls'
