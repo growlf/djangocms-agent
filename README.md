@@ -63,7 +63,8 @@ plugins, versioning, DEBUG-only debug toolbar, admindocs, FOSS files (LICENSE, C
 CONTRIBUTING, SECURITY, issue/PR templates, AGENTS.md + CLAUDE.md recording the purpose), an OpsKit
 `.opskit/pack.yml`, a venv with pinned requirements, migrated and seeded database, an `admin` user with a
 random password printed once, a git repo, and `bin/verify.sh` (check, migrations, tests, seed idempotency,
-Playwright screenshots desktop + mobile). Name and purpose must come from the human; `--dry-run` shows the
+Playwright screenshots desktop + mobile) and, unless `--no-docker`, a Docker + PostgreSQL stack
+(`bin/docker-up.sh`, WhiteNoise, `/health/`, default port 8889 via `APP_PORT`). Name and purpose must come from the human; `--dry-run` shows the
 plan. Exit codes 0 ok, 1 step failed, 2 usage error. Full reference: `references/new-site.md`.
 Tests: `python3 -m pytest tests/`.
 

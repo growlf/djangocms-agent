@@ -42,6 +42,13 @@ or from memory.
 
 ## Running it
 
+**Paths are relative to the skill directory**, not to your project: `bin/new-site.py` means the script in the
+skill (installed path `.claude/skills/djangocms-agent/bin/new-site.py`, or `~/.claude/skills/...`). The script
+derives a **lowercase slug** from `--name` before it does anything (`NetYetiSite` becomes `netyetisite`; spaces
+and punctuation become hyphens, e.g. `Acme Garden Club` becomes `acme-garden-club`) and uses it for the
+directory, the OpsKit manifest name and (with underscores) the Python package. The dry run prints
+`slug=... package=...`; check it, because the directory and package cannot be renamed by the script later.
+
 From a repo checkout: `python3 bin/new-site.py ...`. From an installed skill the script is
 `<skills dir>/djangocms-agent/bin/new-site.py` (for example `~/.claude/skills/djangocms-agent/bin/new-site.py`
 or `<project>/.claude/skills/djangocms-agent/bin/new-site.py`). `bin/` is exposed next to `assets/`,
@@ -63,6 +70,7 @@ python3 bin/new-site.py --name "Acme Garden Club" \
 | `--author` | Copyright holder (default: git `user.name`, else "The <site> contributors") |
 | `--no-venv` / `--skip-install` | Only write files and `git init`: no venv, pip, migrate, seed |
 | `--no-opskit` | Do not write `.opskit/pack.yml` |
+| `--no-docker` | Omit the Docker files (Dockerfile, `docker-compose.yml`, `docker/entrypoint.sh`, `.dockerignore`, `bin/docker-*.sh`) and the Docker sections of README/AGENTS.md. Included by default. Settings, `/health/` and the pinned requirements stay either way |
 | `--dry-run` | Print the file plan, touch nothing |
 | `--require-playwright` | Exit 2 before creating anything when Playwright or chromium is not ready (default: print a notice and continue) |
 | `--yes` | Skip the confirmation asked after interactive prompts |
@@ -83,6 +91,23 @@ and is not empty, or `--require-playwright` with Playwright not ready). It never
   `opskit` command. Do not run `opskit member sync-mount` / `opskit init <path>` to "finish" the
   integration; they have a known prune bug that deletes native agents and skills.
 - `scripts/visual_check.py` (copy) and `bin/verify.sh`.
+- **Docker + PostgreSQL (default; `--no-docker` omits the files):** `Dockerfile` (python:3.12-slim, non-root
+  uid 1000), `docker-compose.yml` (`db` = postgres:16-alpine with no published port, `app` = gunicorn, named
+  volumes for database/media/static, healthchecks), `docker/entrypoint.sh` (wait for DB, migrate,
+  collectstatic, optional `SEED_ON_START=1` seed, `gunicorn --no-control-socket`), `.dockerignore`,
+  `bin/docker-env.sh` (writes a mode-600 `.env` with random secrets, never overwrites), `bin/docker-up.sh`
+  (build, start, wait until healthy, print URL), `bin/docker-down.sh` (keeps volumes unless `--volumes`).
+  The settings themselves are Docker-ready in every site: DB chosen by `DB_ENGINE` (unset = SQLite, so
+  `verify.sh` and `runserver` are unchanged), WhiteNoise, `/health/`, `DJANGO_SERVE_MEDIA`, CSRF/proxy env.
+  A single `manage.py seed` runs `seed_pages` then `seed_site` (idempotent); `seed_pages`/`seed_site` still work.
+  **Default port:** the app is published on `127.0.0.1:${APP_PORT:-8889}`; pick another with
+  `APP_PORT=8891 bin/docker-up.sh` (or `APP_PORT` in `.env`). Add `-p <name>` to run a second copy
+  (`bin/docker-up.sh -p other`; the same `-p` goes to `bin/docker-down.sh`). **CSRF origin note:** admin login
+  fails with a 403 unless the browsed origin is trusted. The compose default follows `APP_PORT` for
+  `localhost` and `127.0.0.1`; for any other host name or a TLS proxy set `DJANGO_CSRF_TRUSTED_ORIGINS`
+  (scheme and port) and `DJANGO_ALLOWED_HOSTS`, and `DJANGO_BEHIND_PROXY=1` when the proxy sends
+  `X-Forwarded-Proto`. Create the admin user inside the stack: `docker compose exec app python manage.py
+  createsuperuser`. The scaffolder never runs Docker; the Docker run is a separate step the user (or you) starts.
 - Unless `--no-venv`: `venv/`, installed pinned requirements, migrated SQLite DB, superuser `admin` with a
   random password printed once at the end (never written to disk or git), `seed_pages` + `seed_site`
   (landing, About, Style & Capabilities, all published), and an initial git commit without any trailer
