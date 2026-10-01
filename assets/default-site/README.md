@@ -26,7 +26,7 @@ It was built and verified in a scratch project (django-cms 5.1.3, Django 5.2.17)
 | `urls_fragment.py` | `<project>/urls.py` | admindocs, admin, debug toolbar (DEBUG only), cms.urls last |
 | `manage.py` | `manage.py` | standard, points at `__PROJECT_NAME__.settings` |
 | `requirements.txt` | `requirements.txt` | pinned, verified set |
-| `.env.example`, `gitignore.template` | `.env.example`, `.gitignore` | environment variables; ignore rules |
+| `env.example.template`, `gitignore.template` | `.env.example`, `.gitignore` | environment variables; ignore rules |
 
 `wsgi.py`, `asgi.py` and `__init__.py` for the project package are the unmodified `django-admin startproject` output (`WSGI_APPLICATION` refers to `wsgi.py`); the scaffold must create them.
 

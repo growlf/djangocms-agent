@@ -218,3 +218,15 @@ def test_scaffold_makes_git_repo_with_neutral_identity(tmp_path):
     assert "Co-Authored-By" not in log.stdout and "Claude" not in log.stdout
     tracked = subprocess.run(["git", "-C", str(root), "ls-files"], capture_output=True, text=True).stdout
     assert "db.sqlite3" not in tracked and ".env\n" not in tracked
+
+
+def test_no_asset_is_gitignored():
+    """A file the scaffolder needs must not be silently dropped by the repo's own .gitignore
+    (.env.example was: it passed locally and was missing from the committed PR)."""
+    import shutil, subprocess
+    repo = Path(__file__).resolve().parent.parent
+    if shutil.which("git") is None or not (repo / ".git").exists():
+        pytest.skip("not a git checkout")
+    files = [p.relative_to(repo).as_posix() for p in (repo / "assets").rglob("*") if p.is_file() and "__pycache__" not in p.parts]
+    out = subprocess.run(["git", "check-ignore", "--no-index", *files], cwd=repo, capture_output=True, text=True)
+    assert out.stdout.strip() == "", f"gitignored asset files: {out.stdout}"

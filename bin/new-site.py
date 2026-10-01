@@ -57,7 +57,8 @@ TOKEN_RE = re.compile(r"\{\{([A-Z_]+)\}\}")
 SKIP_DIRS = {"__pycache__"}
 SKIP_SUBST_PREFIXES = ("static/vendor/",)  # vendored third-party files are copied byte for byte
 # default-site files that are not copied verbatim
-SPECIAL = {"README.md", "settings_fragment.py", "urls_fragment.py", "gitignore.template"}
+# (.env.example is stored as env.example.template: the repo .gitignore ignores .env.*, which silently dropped it)
+SPECIAL = {"README.md", "settings_fragment.py", "urls_fragment.py", "gitignore.template", "env.example.template"}
 
 
 class UsageError(Exception):
@@ -206,6 +207,7 @@ def build_plan(ctx):
         text = (DEFAULT_SITE / frag).read_text(encoding="utf-8")
         plan.add(dest, "text", substitute_site_tokens(text, package, site_name, True))
     plan.add(".gitignore", "text", (DEFAULT_SITE / "gitignore.template").read_text(encoding="utf-8"))
+    plan.add(".env.example", "text", (DEFAULT_SITE / "env.example.template").read_text(encoding="utf-8"))
 
     # 2. project package files (what `django-admin startproject` writes besides settings/urls)
     plan.add(f"{package}/__init__.py", "text", "")
