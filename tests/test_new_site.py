@@ -317,13 +317,15 @@ def load_settings_and_urls(tmp_path, monkeypatch, debug, toolbar):
         "django.conf": types.SimpleNamespace(settings=mod),
         "django.conf.urls.static": types.SimpleNamespace(static=lambda *a, **k: []),
         "django.contrib": types.SimpleNamespace(admin=types.SimpleNamespace(site=types.SimpleNamespace(urls=None))),
-        "django.urls": types.SimpleNamespace(include=lambda x: ("include", x), path=lambda r, v: (r, v)),
+        "django.urls": types.SimpleNamespace(include=lambda x: ("include", x), path=lambda r, v, name=None: (r, v),
+                                         re_path=lambda r, v, kw=None: (r, v)),
     }
     mod.MEDIA_URL, mod.MEDIA_ROOT = "/media/", "m"
     ns_ = {}
-    prelude = "\n".join(l for l in urls_code.splitlines() if not l.startswith(("from django", "import django")))
+    prelude = "\n".join(l for l in urls_code.splitlines() if not l.startswith(("from django", "import django", "from .")))
     ns_.update(settings=mod, static=stubs["django.conf.urls.static"].static, admin=stubs["django.contrib"].admin,
-               include=stubs["django.urls"].include, path=stubs["django.urls"].path)
+               include=stubs["django.urls"].include, path=stubs["django.urls"].path,
+               re_path=stubs["django.urls"].re_path, serve_media=None, health=None)
     exec(compile(prelude, "urls_fragment", "exec"), ns_)
     mod.URLPATTERNS = ns_["urlpatterns"]
     return mod
@@ -384,3 +386,106 @@ def test_generated_readme_documents_treebeard_and_debug_toolbar(tmp_path):
 def test_overflow_claim_matches_script():
     src = (REPO / "scripts" / "visual_check.py").read_text()
     assert "scrollWidth" in src and "clientWidth" in src
+
+
+# ---- Docker + PostgreSQL support ------------------------------------------------------------
+
+DOCKER_FILES = ["Dockerfile", "docker-compose.yml", "docker/entrypoint.sh", ".dockerignore",
+                "bin/docker-up.sh", "bin/docker-down.sh", "bin/docker-env.sh"]
+SHELL_SCRIPTS = ["docker/entrypoint.sh", "bin/docker-up.sh", "bin/docker-down.sh", "bin/docker-env.sh"]
+
+
+def test_docker_files_in_plan_and_on_disk_by_default(tmp_path):
+    plan = cli("--name", "Acme Garden Club", "--purpose", "x", "--parent-dir", str(tmp_path), "--dry-run")
+    assert plan.returncode == 0
+    assert "docker=yes" in plan.stdout
+    root = scaffold(tmp_path)
+    files = tree(root)
+    for rel in DOCKER_FILES + ["acme_garden_club/health.py", "starter/tests_docker.py",
+                               "starter/management/commands/seed.py"]:
+        assert rel in files, rel
+        if rel in DOCKER_FILES:
+            assert f"write {rel}" in plan.stdout, rel
+    assert (root / "docker-compose.yml").read_text().startswith("name: acme_garden_club")
+    assert "gunicorn acme_garden_club.wsgi:application" in (root / "docker/entrypoint.sh").read_text()
+    for rel in ("Dockerfile", "docker-compose.yml", "docker/entrypoint.sh", ".dockerignore", "bin/docker-env.sh",
+                "starter/tests_docker.py", ".env.example"):
+        assert not any(p in (root / rel).read_text() for p in PLACEHOLDERS), rel
+
+
+def test_no_docker_omits_docker_files_but_keeps_settings(tmp_path):
+    root = scaffold(tmp_path, "--no-docker")
+    files = tree(root)
+    for rel in DOCKER_FILES:
+        assert rel not in files, rel
+    assert not (root / "docker").exists()
+    assert "bin/verify.sh" in files and "acme_garden_club/settings.py" in files
+    readme = (root / "README.md").read_text() + (root / "AGENTS.md").read_text()
+    assert "Docker" not in readme and "{{" not in readme
+    plan = cli("--name", "Other Site", "--purpose", "x", "--parent-dir", str(tmp_path), "--dry-run",
+               "--no-docker")
+    assert "docker=no" in plan.stdout and "Dockerfile" not in plan.stdout
+
+
+def test_docker_docs_in_generated_readme_and_agents(tmp_path):
+    root = scaffold(tmp_path)
+    readme, agents = (root / "README.md").read_text(), (root / "AGENTS.md").read_text()
+    for needle in ("## Docker + PostgreSQL", "bin/docker-up.sh", "APP_PORT", "8889", "DJANGO_CSRF_TRUSTED_ORIGINS",
+                   "manage.py seed"):
+        assert needle in readme, needle
+    assert "## Docker + PostgreSQL" in agents and "volume prune" in agents
+    assert "{{" not in readme and "{{" not in agents
+
+
+def test_shell_scripts_executable_and_parse(tmp_path):
+    root = scaffold(tmp_path)
+    for rel in SHELL_SCRIPTS + ["bin/verify.sh"]:
+        assert os.access(root / rel, os.X_OK), rel
+        subprocess.run(["bash", "-n", str(root / rel)], check=True)
+
+
+def test_docker_env_script_makes_private_env_and_never_overwrites(tmp_path):
+    root = scaffold(tmp_path)
+    run = lambda: subprocess.run([str(root / "bin/docker-env.sh")], capture_output=True, text=True, check=True)
+    out = run().stdout
+    env = (root / ".env").read_text()
+    assert "DB_NAME=acme_garden_club" in env and "DB_PASSWORD=" in env and "DJANGO_SECRET_KEY=" in env
+    assert (root / ".env").stat().st_mode & 0o777 == 0o600
+    secret = next(l for l in env.splitlines() if l.startswith("DB_PASSWORD=")).split("=", 1)[1]
+    assert secret and secret not in out
+    (root / ".env").write_text("KEEP=1\n")
+    assert "already exists" in run().stdout and (root / ".env").read_text() == "KEEP=1\n"
+
+
+@pytest.mark.skipif(__import__("shutil").which("docker") is None, reason="docker not installed")
+def test_compose_file_is_valid(tmp_path):
+    root = scaffold(tmp_path)
+    env = {**os.environ, "DB_PASSWORD": "x", "DJANGO_SECRET_KEY": "x", "APP_PORT": "8891"}
+    proc = subprocess.run(["docker", "compose", "config"], cwd=root, env=env, capture_output=True, text=True)
+    if proc.returncode != 0 and "compose" in proc.stderr and "not a docker command" in proc.stderr:
+        pytest.skip("docker compose plugin not installed")
+    assert proc.returncode == 0, proc.stderr
+    assert "http://localhost:8891" in proc.stdout  # CSRF default follows APP_PORT
+    assert "postgres:16-alpine" in proc.stdout
+
+
+def test_requirements_pin_docker_dependencies():
+    reqs = (SITE_SRC / "requirements.txt").read_text()
+    for pkg in ("psycopg[binary]==", "gunicorn==", "whitenoise=="):
+        assert pkg in reqs, pkg
+
+
+def test_settings_fragment_docker_switches():
+    s = (SITE_SRC / "settings_fragment.py").read_text()
+    assert "DB_ENGINE" in s and "django.db.backends.sqlite3" in s and "django.db.backends.postgresql" in s
+    mw = s[s.index("MIDDLEWARE = ["):]
+    order = [mw.index(x) for x in ("ApphookReloadMiddleware", "SecurityMiddleware", "WhiteNoiseMiddleware",
+                                   "SessionMiddleware")]
+    assert order == sorted(order)
+    assert "DJANGO_SERVE_MEDIA" in s and "CompressedStaticFilesStorage" in s
+
+
+def test_dry_run_still_writes_nothing_and_no_venv_flags_work(tmp_path):
+    proc = cli("--name", "Acme", "--purpose", "x", "--parent-dir", str(tmp_path), "--no-venv", "--skip-install",
+               "--dry-run")
+    assert proc.returncode == 0 and list(tmp_path.iterdir()) == []

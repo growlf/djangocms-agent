@@ -35,7 +35,7 @@ Playwright for the visual step; install it once in a scratch venv, not system Py
 Without it `bin/verify.sh` ends `VERIFY RESULT: INCOMPLETE`. The verification server runs with
 `DJANGO_DEBUG_TOOLBAR=0`.
 
-## Known warnings and development extras
+{{DOCKER_README}}## Known warnings and development extras
 
 - `treebeard.E001` (a warning about `cms.PageManager`) is printed on every `manage.py` command. It comes
   from django-cms 5.1.3 with django-treebeard 5.3.x, is upstream, and is harmless until treebeard 6; do not
