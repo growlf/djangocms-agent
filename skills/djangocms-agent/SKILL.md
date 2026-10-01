@@ -1,6 +1,6 @@
 ---
 name: djangocms-agent
-description: 'DjangoCMS 5.x specialist. Use for: django-cms, cms pages, placeholders, cms plugins, cms templates, cms migrations, toolbar, apphooks.'
+description: 'DjangoCMS 5.x specialist. Use for: django-cms, cms pages, placeholders, cms plugins, cms templates, cms migrations, toolbar, apphooks, finding or adding packages (djangopackages, is there a package for, add a blog/forms/SEO/search/shop plugin).'
 license: MIT
 metadata:
   author: growlf
@@ -55,6 +55,11 @@ This single skill covers pages, placeholders, templates, plugins, admin, middlew
 - **Templates & themes** (Bootstrap default theme, template structure, menu, what was verified): read `references/templates-and-theme.md` only when creating or editing templates.
 - **New site scaffolder** (name/purpose questions, flags, verify.sh, what is generated): read `references/new-site.md` when asked to create a site.
 - **Plugin compatibility** (works / fails matrix, bootstrap5 caveats, transitive pins): read `references/plugins.md` only when adding or changing CMS plugins.
+- **Finding packages** (Django Packages search, evaluation checklist, supply-chain care, trial, install/configure/record): read `references/django-packages.md` when the user asks whether a package exists or wants a feature a plugin could provide.
+
+## Finding packages (Django Packages)
+
+When the user asks "is there a package for X?" or for a feature a package could give (blog, forms, SEO, search, e-commerce, gallery, ...): (1) `bin/djangopackages.py search "<words>"` (and `grids <text>` / `grid <slug>`); it is a starting point, not a vetting authority; (2) shortlist 2-3 and apply the evaluation checklist in `references/django-packages.md` (Django 5.2, Python 3.12-3.14, django-cms 5.1.x, maintenance, license, migrations, extra services/CDN, `references/plugins.md` findings, supply chain); (3) tell the user, recommend one, and **ask before installing: never install unprompted**; (4) after a yes, `bin/package-trial.py NAME --app DOTTED` in a throwaway site; (5) install in the real site as described in the reference; (6) run `bin/verify.sh` and look at the screenshots; (7) record the result in `references/plugins.md`. **Never claim a package works until the trial and verify passed**: the table's compatibility column is a metadata heuristic, and a trial PASS means only check + migrate + import.
 
 ## New site (the one workflow to follow)
 
