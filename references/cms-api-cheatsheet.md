@@ -12,7 +12,7 @@ from django.contrib.sites.models import Site
 page = create_page(
     title="My Page",
     template="page.html",
-    language="en-us",  # Required
+    language="en-us",  # Required; must be a code in LANGUAGES/CMS_LANGUAGES
     in_navigation=True,
 )
 

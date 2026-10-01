@@ -57,7 +57,7 @@ This single skill covers pages, placeholders, templates, plugins, admin, middlew
 
 ## CMS Gotchas (from TheNetYeti)
 
-- **`create_page` requires a language code that is in `LANGUAGES`** (e.g. `"en"`) — no `published=` kwarg. With djangocms-versioning it creates a **draft**; publish with `page.get_admin_content("en").versions.first().publish(user)`. Pass `in_navigation=True` for pages that belong in menus. Set the home page with `with transaction.atomic(): page.set_as_homepage()`.
+- **`create_page` requires a language code that is in your `LANGUAGES`/`CMS_LANGUAGES`** (the examples here use `en-us`; use whatever your project defines) — no `published=` kwarg. With djangocms-versioning it creates a **draft**; publish with `page.get_admin_content("en").versions.first().publish(user)`. Pass `in_navigation=True` for pages that belong in menus. Set the home page with `with transaction.atomic(): page.set_as_homepage()`.
 - **CMS page lookup** — slugs live in `PageUrl`: `PageUrl.objects.get(slug=slug).page`
 - **Re-pointing page templates** — use `PageContent.objects.filter(page=page, language="en-us").first().template`
 - **`{% render_block %}`** — cannot live inside a `{% block %}` (swallows following `{% endblock %}`)

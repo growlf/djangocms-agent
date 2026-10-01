@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## Unreleased
+## 0.5.0 - 2026-09-30
 
 ### Fixed (found by building a scratch django-cms 5.1.3 project from the docs)
 - `show_menu` does NOT require `cms.context_processors.cms_settings` (it falls back to its own renderer); it needs pages with `in_navigation=True`. The earlier claim was wrong.
@@ -24,7 +24,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `SKILL.md` slimmed from ~420 to ~75 lines; detail moved to `references/` (read on demand).
 - `scripts/visual_check.py` rewritten: real exit codes (0 pass / 1 issues / 2 error), console-error and failed-subresource detection, exact 404 detection (no more false 404s on pages that mention "not found"), `--mobile`, `--expect-text`, `--login`; unit tests added.
 
-## 0.5.0 - 2026-09-30
 
 ### Fixed
 - Removed duplicate sections from djangocms-agent SKILL.md (deduplicated ~160 lines)
