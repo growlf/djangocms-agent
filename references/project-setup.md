@@ -51,6 +51,32 @@ Verified 2026-10-01 on cms 5.1.3 / Django 5.2.17: `manage.py check` clean, four 
 X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allows CMS toolbar iframe to load
 ```
 
+### Static files and site name
+
+Required for any theme that ships a stylesheet. Without `STATICFILES_DIRS`, files in a project-level `static/` directory are not found; without a context processor, `{{ site_name }}` is undefined and renders empty (Django does not error).
+
+```python
+# settings.py
+INSTALLED_APPS = [..., 'django.contrib.staticfiles', ...]   # included in a default startproject
+STATIC_URL = 'static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']      # project-level static/ (e.g. static/css/site.css)
+STATIC_ROOT = BASE_DIR / 'staticfiles'        # collectstatic target; add to .gitignore
+SITE_NAME = 'My Site'
+
+TEMPLATES[0]['OPTIONS']['context_processors'] += ['myproject.context_processors.site']
+```
+
+```python
+# myproject/context_processors.py
+from django.conf import settings
+
+def site(request):
+    """Expose settings.SITE_NAME to every template as site_name."""
+    return {"site_name": settings.SITE_NAME}
+```
+
+`runserver` serves `STATICFILES_DIRS` only when `DEBUG` is on. In production run `collectstatic` and serve `STATIC_ROOT` from the web server. Verified in a scratch project on cms 5.1.3 / Django 5.2.17: `/static/css/site.css` returned 200 as `text/css`.
+
 ### CMS Toolbar settings
 ```python
 # Real django-cms 5.1.3 toolbar settings (verified in cms/utils/conf.py).

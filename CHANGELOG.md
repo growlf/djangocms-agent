@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+- Default theme reference files replaced with the version built and checked in the testsite project (all pages passed `visual_check.py` on desktop and mobile): `default-theme.html` (base), new `default-theme-two-column.html` and `default-menu.html`, and `default.css` (now `--site-*` tokens, dark mode, `:focus-visible`, skip link, restored text spacing, styled nested menu with dropdowns). The `netyeti` prefix is gone. `templates-and-theme.md` rewritten to match, with a verification checklist that only ticks what was run; hamburger and Bootstrap compatibility are listed as not implemented.
+- `references/project-setup.md`: new "Static files and site name" section (`STATICFILES_DIRS`, `STATIC_ROOT`, `SITE_NAME` + context processor).
+- Fixed in the old reference theme: undefined `{{ site_name }}`, claimed-but-missing dark mode, menu selectors that never matched `{% show_menu %}` output, `* { margin:0; padding:0 }` stripping content spacing, links with no underline, hardcoded `cms-home` class, always-on sidebar, bare `<li>` directly in `<nav>`, no `{% block %}` hook, `default.html` vs `default-theme.html` naming, `CMS_TEMPLATES` entry that was not a template path.
+
 ### Fixed (found by the testsite exercise, 2026-09-30)
 - `skills/djangocms-reviewer/SKILL.md`: no longer hardcodes `language="en-us"` (it must match the project's `LANGUAGES`); adds apphook checks (`app_name`/`apphook_namespace`, `ApphookReloadMiddleware`, `reload_urlconf()` in tests) and seed-script checks (slug+language idempotency, `atomic()`, `created_by`).
 - `skills/djangocms-agent/` now contains `references` and `scripts` symlinks to the repo-level directories. In link-mode installs only `SKILL.md` was visible, so `scripts/visual_check.py` and every `references/` link it names appeared missing.

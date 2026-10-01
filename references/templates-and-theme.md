@@ -1,50 +1,45 @@
-### Default CMS template (generic theme with dynamic menu)
+### Default theme (verified on cms 5.1.3 / Django 5.2.17)
+
+A small, dependency-free theme: two CMS templates, a styled nested menu and one stylesheet. It was built and checked in a scratch project ("testsite"): all pages passed `scripts/visual_check.py` on desktop and `--mobile`, and the template tests passed. Files in `references/`:
+
+| Reference file | Copy to | Purpose |
+|---|---|---|
+| `default-theme.html` | `templates/base.html` | Base chrome (header, nav, footer) with the `content` placeholder; single-column |
+| `default-theme-two-column.html` | `templates/two_column.html` | Extends base; adds a `sidebar` placeholder and a responsive 3fr/1fr grid |
+| `default-menu.html` | `templates/menu/menu.html` | Menu template for `{% show_menu 0 100 100 100 "menu/menu.html" %}` |
+| `default.css` | `static/css/site.css` | Tokens, layout, menu, dark mode, print |
+
+Also required (see `project-setup.md`, "Static files and site name"): `STATICFILES_DIRS`, `STATIC_ROOT`, a `SITE_NAME` setting and a context processor that exposes it as `site_name`. Nothing defines `site_name` for you; without it the title, logo and footer render empty.
+
 ```python
-# In settings.py
 CMS_TEMPLATES = [
-    ('default', 'Default'),
+    ('base.html', 'Standard'),
+    ('two_column.html', 'Two column'),
 ]
 
 CMS_PLACEHOLDER_CONF = {
-    'content': {
-        'plugins': ['TextPlugin', 'PicturePlugin', 'LinkPlugin', 'AliasPlugin'],
-        'name': 'Content',
-        'extra_context': {'width': False},
-    },
-    'sidebar': {
-        'plugins': ['LinkPlugin', 'PicturePlugin', 'AliasPlugin'],
-        'name': 'Sidebar',
-        'extra_context': {'width': False},
-    },
+    'content': {'name': 'Content', 'plugins': ['TextPlugin', 'LinkPlugin', 'AliasPlugin']},
+    'sidebar': {'name': 'Sidebar', 'plugins': ['TextPlugin', 'LinkPlugin', 'AliasPlugin']},
 }
 ```
 
+What the theme does (all in `default.css`):
+- CSS custom properties (`--site-*`), mobile-first layout, system font stack.
+- Light and dark colour schemes via `prefers-color-scheme` (dark tokens override the light ones; `color-scheme: light dark` is set).
+- `:focus-visible` outlines, a skip link, underlined links, reduced-motion handling, print styles.
+- Spacing is restored for text-plugin content (headings, paragraphs, lists, tables, code).
+- Menu: current page `.selected`, ancestors `.ancestor`, items with children `.has-children`. On desktop (>= 768px) nested levels open as dropdowns on hover or keyboard focus and the third level opens leftwards so it stays on screen; below that, nested levels show inline and indented. There is no hamburger toggle.
 
-### Default Theme (professional, mobile-friendly)
-Create `templates/default.html` with:
-- Mobile-first responsive CSS (use CSS custom properties for theming)
-- Proper typography (system font stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', etc.)
-- CSS grid/flexbox layout with max-width containers
-- Dark/light mode support (prefers-color-scheme)
-- Accessible markup (ARIA labels, semantic HTML5 elements)
-- Site navigation menu with dropdown support
-- Footer with standard links
-- Placeholder regions: `{% placeholder "content" %}` and `{% placeholder "sidebar" %}`
-- CMS toolbar: `{% cms_toolbar %}`
-- Sekizai blocks: `{% render_block "css" %}` and `{% render_block "js" %}`
+Rules these templates follow (and that any replacement must too):
+- `{% render_block "css" %}` and `{% render_block "js" %}` stay outside any `{% block %}`.
+- `{% block main %}` wraps the placeholder(s), so apphook and other templates can `{% extends "base.html" %}` and override only `main`.
+- Only the two-column template renders a sidebar. Keep placeholder slot names in sync between templates and `CMS_PLACEHOLDER_CONF`.
+- `{% show_menu %}` emits bare `<li>` items, so the template wraps it in `<ul class="menu">`.
+- Do not put `{% %}` tags inside `{# #}` comments.
 
-See `references/default-theme.html` for a production-ready template.
-
-### Default CSS (professional styling)
-Create `static/css/netyeti.css` with:
-- CSS custom properties for colors, spacing, typography
-- Mobile-first media queries
-- Print styles
-- Focus/accessible states
-- Smooth scroll behavior
-- Professional color palette (not default browser colors)
-
-See `references/default.css` for a complete production stylesheet.
+### Unverified items
+- Bootstrap compatibility: this theme is plain CSS, not Bootstrap. `djangocms_bootstrap5` is only listed as an optional plugin app.
+- Contrast was judged by eye; no numeric contrast tool was run (link `#1d4ed8` on white and `#4b5563` muted text are expected to be above AA, not measured).
 
 
 ### Project Defaults (partially verified — see CHANGELOG)
@@ -82,73 +77,24 @@ TEMPLATES = [{
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 ```
 
-### Template Structure (renders on cms 5.1.3 once the menu include is supplied)
+### Menu template
 
-Note: `menu/hamburger.html` and `{{ site_name }}` are not shipped/defined by this repo; supply your own or replace them.
+Use `{% load menu_tags %}` then `{% show_menu 0 100 100 100 "menu/menu.html" %}`. It only lists pages created with `in_navigation=True` (`create_page` defaults to `False`, which gives an empty menu). It works with or without `cms.context_processors.cms_settings`.
 
-```html
-{% load cms_tags sekizai_tags menu_tags static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% page_attribute "page_title" %} | {{ site_name }}</title>
-    <link rel="stylesheet" href="{% static 'css/netyeti.css' %}">
-    {% render_block "css" %}
-</head>
-<body class="cms cms-home">
-    {% cms_toolbar %}
-    <header class="site-header">
-        {% include "menu/hamburger.html" %}
-    </header>
-    <main class="site-main">
-        <div class="content-sidebar">
-            <div class="content">{% placeholder "content" %}</div>
-            <aside class="sidebar">{% placeholder "sidebar" %}</aside>
-        </div>
-    </main>
-    <footer class="site-footer">
-        <p>&copy; {% now "Y" %} {{ site_name }}</p>
-    </footer>
-    {% render_block "js" %}
-</body>
-</html>
-```
+`references/default-menu.html` is the template used by the theme. The stock `menu/menu.html` emits bare `<li class="child selected ...">` with no wrapper and an unclassed nested `<ul>`, which is why the theme overrides it and wraps the call in `<ul class="menu">`. The recursive `{% show_menu from_level to_level extra_inactive extra_active template "" "" child %}` call renders each submenu.
 
-### Menu Template (both variants render on cms 5.1.3)
+A hand-rolled loop over `request.current_page.get_root_nodes` also renders, but it ignores `in_navigation` and has no submenu or active-trail logic; prefer the template above.
 
-Preferred: `{% load menu_tags %}` then `{% show_menu 0 100 100 100 %}`. It only lists pages created with `in_navigation=True` (`create_page` defaults to `False`, which gives an empty menu). It works with or without `cms.context_processors.cms_settings`.
+### Verification checklist
 
-The hand-rolled loop below (`request.current_page.get_root_nodes`) also renders; it lists every root page regardless of `in_navigation` and has no submenu or active-trail logic.
-
-```html
-{% load cms_tags %}
-<nav class="site-nav">
-    <button class="nav-toggle" aria-label="Toggle navigation">
-        <span class="hamburger-icon"></span>
-    </button>
-    <ul class="nav-menu">
-        {% for page in request.current_page.get_root_nodes %}
-        <li class="nav-item{% if page == request.current_page %} active{% endif %}">
-            <a href="{{ page.get_absolute_url }}">{{ page.get_menu_title }}</a>
-        </li>
-        {% empty %}
-        <li class="nav-item"><a href="/">Home</a></li>
-        {% endfor %}
-    </ul>
-</nav>
-```
-
-### Mobile Verification Checklist (not yet run; the desktop render was verified, mobile/responsive behaviour was not)
-
-- [ ] Hamburger button visible on mobile (< 768px)
-- [ ] Menu opens on click
-- [ ] Menu items visible and clickable
-- [ ] Menu closes when tapping outside
-- [ ] Desktop view shows horizontal menu
-- [ ] CSS grid/flexbox responsive layout
-- [ ] Dark/light mode support
+Run against the theme in a scratch project (cms 5.1.3), using `scripts/visual_check.py` on `/`, a nested page, the two-column page and an apphook page, each with and without `--mobile`:
+- [x] Pages render with the stylesheet (`/static/css/site.css` returns 200 as `text/css`)
+- [x] Desktop view shows a horizontal menu; current page is marked (`aria-current="page"`)
+- [x] Nested menu levels open as dropdowns on desktop and show inline on mobile
+- [x] Two-column layout stacks on mobile
+- [x] Dark scheme renders readably (checked in screenshots, not by contrast tool)
+- [ ] Numeric contrast check
+- [ ] Hamburger/collapse toggle (not implemented)
 
 
 ### Root URL redirect (only when the CMS home page is NOT served at `/`)
