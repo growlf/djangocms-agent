@@ -540,3 +540,13 @@ def test_non_tty_missing_args_still_usage_error(monkeypatch):
     args = ns.build_parser().parse_args([])
     with pytest.raises(ns.UsageError):
         ns.resolve_inputs(args)
+
+
+def test_container_file_tests_skip_without_docker_files():
+    """A --no-docker site still ships starter/tests_docker.py (the behaviour tests apply either way), so the
+    container-file checks must skip themselves when the Dockerfile is absent (found: verify.sh ended FAIL)."""
+    repo = Path(__file__).resolve().parent.parent
+    text = (repo / "assets" / "default-site" / "starter" / "tests_docker.py").read_text()
+    head, _, _ = text.partition("class ContainerFilesTests")
+    assert "skipUnless((BASE / 'Dockerfile').exists()" in head.splitlines()[-2] or "skipUnless((BASE / 'Dockerfile').exists()" in head[-300:], \
+        "ContainerFilesTests must skip when the Dockerfile is absent"
