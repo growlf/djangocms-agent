@@ -14,6 +14,9 @@ docs:
   - references/cms-settings-reference.md
   - references/cms-api-cheatsheet.md
   - references/cms-commands-cheatsheet.md
+  - references/project-setup.md
+  - references/templates-and-theme.md
+  - references/plugins.md
 trust:
   bash: ask
   tool_deny: []
