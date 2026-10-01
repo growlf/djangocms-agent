@@ -73,7 +73,7 @@ python3 bin/new-site.py --name "Acme Garden Club" \
 | `--no-docker` | Omit the Docker files (Dockerfile, `docker-compose.yml`, `docker/entrypoint.sh`, `.dockerignore`, `bin/docker-*.sh`) and the Docker sections of README/AGENTS.md. Included by default. Settings, `/health/` and the pinned requirements stay either way |
 | `--dry-run` | Print the file plan, touch nothing |
 | `--require-playwright` | Exit 2 before creating anything when Playwright or chromium is not ready (default: print a notice and continue) |
-| `--yes` | Skip the confirmation asked after interactive prompts |
+| `--yes` | Skip the confirmation asked after interactive prompts (each prompt re-asks until the answer is valid) |
 
 Exit codes: **0** ok, **1** a build step failed (partial project left in place, step named), **2** usage
 or validation error (missing name/purpose non-interactively, bad name, unsupported license, target exists
