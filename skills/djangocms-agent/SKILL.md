@@ -51,7 +51,7 @@ Exit 0 = no issues; 1 = issues found; 2 = script/browser error. Output ends with
 
 This single skill covers pages, placeholders, templates, plugins, admin, middleware and migrations. Detailed material is in references/:
 
-- **Project setup** (TEMPLATES, X-Frame, toolbar, versioning, admindocs, debug toolbar): read `references/project-setup.md` only when creating or fixing `settings.py` / `urls.py`.
+- **Project setup** (TEMPLATES, MIDDLEWARE, X-Frame, toolbar, versioning, admindocs, debug toolbar, production hardening): read `references/project-setup.md` only when creating or fixing `settings.py` / `urls.py`.
 - **Templates & themes** (default theme, template structure, menu, mobile checklist, CSS): read `references/templates-and-theme.md` only when creating or editing templates.
 - **Plugin lists** (proven, untested, transitive pins): read `references/plugins.md` only when adding or changing CMS plugins.
 

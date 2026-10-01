@@ -26,6 +26,26 @@ TEMPLATES = [
 ]
 ```
 
+### MIDDLEWARE (order matters)
+```python
+MIDDLEWARE = [
+    "cms.middleware.utils.ApphookReloadMiddleware",          # first: reloads stale URLconfs after apphook changes
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",              # after sessions
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware", # enforces X_FRAME_OPTIONS below
+    "cms.middleware.user.CurrentUserMiddleware",              # cms middleware last
+    "cms.middleware.page.CurrentPageMiddleware",
+    "cms.middleware.toolbar.ToolbarMiddleware",
+    "cms.middleware.language.LanguageCookieMiddleware",
+]
+```
+Verified 2026-10-01 on cms 5.1.3 / Django 5.2.17: `manage.py check` clean, four published pages return 200, logged-in users get the toolbar markup, responses carry `X-Frame-Options: SAMEORIGIN`. An earlier scratch project that listed only sessions, common, csrf, auth, messages and the four `cms.middleware.*` entries also booted and rendered, which is why this gap went unnoticed: it had no `SecurityMiddleware`, no clickjacking header, no locale handling and no apphook reload. Do not omit the stock Django entries.
+
 ### X-Frame-Options (for CMS toolbar)
 ```python
 X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allows CMS toolbar iframe to load
@@ -84,3 +104,18 @@ if settings.DEBUG:
 ```
 
 Never install the toolbar unconditionally; gate it on DEBUG.
+
+### Production hardening checklist
+Run `python manage.py check --deploy` against your production settings; it must report nothing you have not consciously accepted. Verified 2026-10-01 on a scratch project: with the settings below, only W005, W019 and W021 remained.
+
+```python
+DEBUG = False
+SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]        # 50+ chars, 5+ unique; never commit it
+ALLOWED_HOSTS = ["example.org"]                       # never ["*"]
+SECURE_SSL_REDIRECT = True                            # behind a TLS proxy also set SECURE_PROXY_SSL_HEADER
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_HSTS_SECONDS = 31536000                        # start small (e.g. 3600) until you are sure
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+```
+Accepted trade-offs, not defects: `security.W019` (X_FRAME_OPTIONS is `SAMEORIGIN`, not `DENY`, because the CMS toolbar frames same-origin pages), `security.W005` (HSTS subdomains) and `security.W021` (HSTS preload) are per-site decisions. Also use a real database (PostgreSQL) rather than SQLite, and gate the debug toolbar on `DEBUG` (see above).
