@@ -52,14 +52,20 @@ Exit 0 = no issues; 1 = issues found; 2 = script/browser error. Output ends with
 This single skill covers pages, placeholders, templates, plugins, admin, middleware and migrations. Detailed material is in references/:
 
 - **Project setup** (TEMPLATES, MIDDLEWARE, X-Frame, toolbar, versioning, admindocs, debug toolbar, production hardening): read `references/project-setup.md` only when creating or fixing `settings.py` / `urls.py`.
-- **Templates & themes** (default theme, template structure, menu, mobile checklist, CSS): read `references/templates-and-theme.md` only when creating or editing templates.
-- **Plugin lists** (proven, untested, transitive pins): read `references/plugins.md` only when adding or changing CMS plugins.
+- **Templates & themes** (Bootstrap default theme, template structure, menu, what was verified): read `references/templates-and-theme.md` only when creating or editing templates.
+- **Plugin compatibility** (works / fails matrix, bootstrap5 caveats, transitive pins): read `references/plugins.md` only when adding or changing CMS plugins.
+
+## Default site
+
+A complete, verified Bootstrap 5 site (templates, static, `starter` app with seed commands, settings, urls, pinned requirements) is in `assets/default-site/` (see its `README.md`). Build new sites from it rather than from memory; it carries the settings and gotchas above already worked out. Theme docs: `references/templates-and-theme.md`.
 
 ## CMS Gotchas (from TheNetYeti)
 
 - **`create_page` requires a language code that is in your `LANGUAGES`/`CMS_LANGUAGES`** (the examples here use `en-us`; use whatever your project defines) — no `published=` kwarg. With djangocms-versioning it creates a **draft**; publish with `page.get_admin_content("en").versions.first().publish(user)`. Pass `in_navigation=True` for pages that belong in menus. Set the home page with `with transaction.atomic(): page.set_as_homepage()`.
 - **Language codes are project-specific** — `en-us` in these docs is only an example. A project with `LANGUAGES = [("en", ...)]` must use `"en"` everywhere (`create_page`, `add_plugin`, `PageContent` filters), or lookups silently return nothing.
-- **`create_page(created_by=...)`** — pass a username string or user; `None` crashes on a fresh DB with no superuser. Fall back to a literal like `"python-api"` in seed scripts.
+- **`create_page(created_by=...)`** — `None` crashes on a fresh DB with no superuser. A username string is accepted for creation, but **publishing needs a real user object**: the `"python-api"` string fallback cannot publish. In seed scripts get-or-create an (inactive) system user and pass that.
+- **Versioning hides drafts from the normal API** — `Page.get_placeholders(lang)` only sees PUBLISHED content, so a freshly created draft page looks empty. Use `page.get_placeholders(lang, admin_manager=True)` or `PageContent.admin_manager.current_content()` when seeding or editing drafts, then publish.
+- **Content that predates versioning** has no `Version` rows after installing djangocms-versioning and renders as missing. Fix once with `manage.py create_versions --state published --username <user>` (or create the `Version` yourself in code).
 - **Seed scripts** — key idempotency on `PageUrl(slug=..., language=...)`, not on title (titles are not unique), and wrap each page's create/plugin/homepage work in one `transaction.atomic()` so a failed `add_plugin` can't leave an empty page that later runs skip.
 - **Apphooks** — see `references/cms-api-cheatsheet.md` ("Apphooks"). Three things bite: set `CMSApp.app_name` to match the `app_name` in your `urls.py` and pass `apphook_namespace=` to `create_page` (else `{% url %}` raises `NoReverseMatch`); `cms.middleware.utils.ApphookReloadMiddleware` must be in `MIDDLEWARE`; tests must call `reload_urlconf()` (`from cms.utils.apphook_reload import reload_urlconf`) after creating apphook pages, because the urlconf is cached.
 - **djangocms-versioning is optional** — without it there is no draft/publish step and pages are live on creation; the `.versions.first().publish()` recipe above only applies when it is installed.

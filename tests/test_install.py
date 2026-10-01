@@ -219,5 +219,53 @@ class TestDoctor(Base):
         self.assertIn("MISSING: .claude/agents/djangocms-agent.md", r.stdout)
 
 
+class TestAssetsSymlink(Base):
+    """The default-site template must be reachable from an installed skill (link and copy modes)."""
+
+    MARKER = "assets/default-site/starter/seeding.py"
+
+    def test_source_symlink_points_at_repo_assets(self):
+        link = REPO / "skills/djangocms-agent/assets"
+        self.assertTrue(link.is_symlink())
+        self.assertEqual(os.readlink(link), "../../assets")
+        self.assertTrue((link / "default-site/templates/base.html").is_file())
+
+    def _check(self, flag):
+        self.assertEqual(self.run_cli(flag).returncode, 0)
+        skill = self.proj / ".claude/skills/djangocms-agent"
+        for rel in ("assets/default-site/templates/base.html", "assets/default-site/static/vendor/bootstrap/LICENSE",
+                    "assets/default-site/settings_fragment.py", self.MARKER):
+            self.assertTrue((skill / rel).is_file(), rel)
+        r = self.run_cli("doctor")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("OK", r.stdout)
+        return skill
+
+    def test_link_install_resolves_assets_and_uninstalls(self):
+        self._check("--link")
+        self.assertEqual(self.run_cli("--uninstall").returncode, 0)
+        self.assertEqual(self.tree(self.proj), [])
+        self.assertTrue((REPO / "assets/default-site/templates/base.html").is_file(), "uninstall must not touch the source")
+
+    def test_copy_install_resolves_assets_and_uninstalls(self):
+        skill = self._check("--copy")
+        self.assertFalse(skill.joinpath("assets").is_symlink(), "copy mode materialises the files")
+        self.assertEqual(self.run_cli("--uninstall").returncode, 0)
+        self.assertEqual(self.tree(self.proj), [])
+
+    def test_default_site_has_no_testsite_leftovers(self):
+        bad = ("testlog", "Test Site", "task #139", "OutcomeCallout", "testsite")
+        root = REPO / "assets/default-site"
+        for path in root.rglob("*"):
+            if path.is_file() and "vendor" not in path.parts and path.suffix in {".py", ".html", ".css", ".js", ".md", ".txt"}:
+                text = path.read_text()
+                for word in bad:
+                    self.assertNotIn(word, text, f"{path.relative_to(root)} mentions {word!r}")
+
+    def test_python_assets_compile(self):
+        for path in (REPO / "assets/default-site").rglob("*.py"):
+            compile(path.read_text(), str(path), "exec")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+- `assets/default-site/`: a complete, copyable Bootstrap 5.3 default site ported from the verified testsite build: templates (base, landing, standard, menu), static (site.css, theme.js, vendored Bootstrap 5.3.3 with its MIT LICENSE), a `starter` app (generic trusted-editors-only `HtmlBlock` plugin, `seeding.py`, idempotent `seed_pages`/`seed_site`, 20 tests), `settings_fragment.py`, `urls_fragment.py`, context processor, pinned `requirements.txt`. Project-specific tokens are `__PROJECT_NAME__` and `__SITE_NAME__` (a scaffold script is a later change). Testsite-only parts (testlog app, findings text) were removed and `CMS_PLACEHOLDER_CONF` now names `feature_1..3`.
+- `skills/djangocms-agent/assets` symlink so installed skills (link and copy modes) can read the assets; installer tests cover both modes, doctor and uninstall.
+
+### Fixed (found by the default-site build)
+- `references/plugins.md` rewritten as a works/fails matrix: bootstrap5 passes only for its base app and the alerts/badge/card/collapse/content/jumbotron/listgroup/picture/tabs/utilities contrib apps; `bootstrap5_grid`, `bootstrap5_link`, `bootstrap5_carousel` fail, djangocms-snippet is unsuitable, text-ckeditor must stay out of `INSTALLED_APPS`; bootstrap5 quirks (picture replaces stock picture, no default classes via `add_plugin`, unfixable migration drift, Google Map needs an API key).
+- `SKILL.md` gotchas: `get_placeholders(lang)` sees only published content (use `admin_manager=True`); `create_versions` for pre-versioning content; the `"python-api"` string cannot publish, a real user object is required.
+- `references/project-setup.md`: debug toolbar inserted at index 1 and DEBUG-only (index 0 broke the ApphookReloadMiddleware-first rule); TEMPLATES `loaders` conflicts with `APP_DIRS: True`; admindocs prefix (`admin/docs/` vs Django's `admin/doc/`); toolbar settings note that `CMS_TOOLBAR_REQUIRE_SUPERUSER`/`ANONYMOUS_EDIT` do not exist.
+- `references/templates-and-theme.md` rewritten for the Bootstrap theme (hamburger and Bootstrap are now implemented); the checklist ticks only what was run and lists what was not (logged-in toolbar and `/admin/docs/` in a browser, numeric contrast).
+
+### Removed
+- `references/default-theme.html`, `default-theme-two-column.html`, `default-menu.html`, `default.css`: superseded by `assets/default-site/` (no duplicated copies to drift).
+
 ### Changed
 - Default theme reference files replaced with the version built and checked in the testsite project (all pages passed `visual_check.py` on desktop and mobile): `default-theme.html` (base), new `default-theme-two-column.html` and `default-menu.html`, and `default.css` (now `--site-*` tokens, dark mode, `:focus-visible`, skip link, restored text spacing, styled nested menu with dropdowns). The `netyeti` prefix is gone. `templates-and-theme.md` rewritten to match, with a verification checklist that only ticks what was run; hamburger and Bootstrap compatibility are listed as not implemented.
 - `references/project-setup.md`: new "Static files and site name" section (`STATICFILES_DIRS`, `STATIC_ROOT`, `SITE_NAME` + context processor).

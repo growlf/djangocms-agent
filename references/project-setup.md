@@ -2,12 +2,14 @@
 
 When creating a new DjangoCMS project, always include these settings in `settings.py`:
 
-### TEMPLATES (with app_directories loader)
+### TEMPLATES (explicit loaders, no APP_DIRS)
+Pick ONE way to find templates. `APP_DIRS: True` and an explicit `OPTIONS['loaders']` list are mutually exclusive: Django raises `ImproperlyConfigured` if both are set. Either works for CMS plugins as long as the app_directories loader is present; the default site uses explicit loaders and leaves `APP_DIRS` out. (If you do not need to customise loaders, `'APP_DIRS': True` with no `loaders` key is the simpler choice.)
 ```python
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [BASE_DIR / 'templates'],
+        # no 'APP_DIRS': it conflicts with 'loaders' below
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
@@ -19,12 +21,14 @@ TEMPLATES = [
             ],
             'loaders': [
                 'django.template.loaders.filesystem.Loader',
-                'django.template.loaders.app_directories.Loader',  # REQUIRED for CMS plugins
+                'django.template.loaders.app_directories.Loader',  # REQUIRED for CMS plugin templates
             ],
         },
     },
 ]
 ```
+
+The complete, working settings for the default site are in `assets/default-site/settings_fragment.py`.
 
 ### MIDDLEWARE (order matters)
 ```python
@@ -44,7 +48,7 @@ MIDDLEWARE = [
     "cms.middleware.language.LanguageCookieMiddleware",
 ]
 ```
-Verified 2026-10-01 on cms 5.1.3 / Django 5.2.17: `manage.py check` clean, four published pages return 200, logged-in users get the toolbar markup, responses carry `X-Frame-Options: SAMEORIGIN`. An earlier scratch project that listed only sessions, common, csrf, auth, messages and the four `cms.middleware.*` entries also booted and rendered, which is why this gap went unnoticed: it had no `SecurityMiddleware`, no clickjacking header, no locale handling and no apphook reload. Do not omit the stock Django entries.
+The default site's `MIDDLEWARE` (`assets/default-site/settings_fragment.py`) lists the cms middleware before `XFrameOptionsMiddleware` and omits `LocaleMiddleware` (single-language site); both orders work. Verified 2026-10-01 on cms 5.1.3 / Django 5.2.17: `manage.py check` clean, four published pages return 200, logged-in users get the toolbar markup, responses carry `X-Frame-Options: SAMEORIGIN`. An earlier scratch project that listed only sessions, common, csrf, auth, messages and the four `cms.middleware.*` entries also booted and rendered, which is why this gap went unnoticed: it had no `SecurityMiddleware`, no clickjacking header, no locale handling and no apphook reload. Do not omit the stock Django entries.
 
 ### X-Frame-Options (for CMS toolbar)
 ```python
@@ -87,6 +91,7 @@ CMS_TOOLBAR_URL__DISABLE = "toolbar_off"
 CMS_TOOLBAR_URL__PERSIST = "persist"
 CMS_TOOLBAR_HIDE = False
 ```
+The default site sets `CMS_TOOLBAR_ANONYMOUS_ON = False` so anonymous visitors never see the login prompt. `CMS_TOOLBAR_REQUIRE_SUPERUSER` and `ANONYMOUS_EDIT` do NOT exist in django-cms 5.1.3 (grepped in the installed package; do not set them, Django will silently ignore unknown settings). There is no setting to restrict the toolbar to superusers: who can edit is governed by Django and CMS permissions.
 
 ### DjangoCMS Versioning (built-in draft workflow)
 ```python
@@ -107,29 +112,31 @@ Versioning enables: unpublished drafts, version numbers, content approval workfl
 # In INSTALLED_APPS
 'django.contrib.admindocs',
 
-# In urls.py
+# In urls.py: BEFORE path('admin/', ...), or the admin catch-all swallows it
 path('admin/docs/', include('django.contrib.admindocs.urls')),
 ```
-Docs available at `/admin/docs/`. Requires `docutils`, which is **not** installed with Django: `pip install docutils` (without it `/admin/docs/` shows "Please install docutils").
+Requires `docutils`, which is **not** installed with Django: `pip install docutils` (without it the page shows "Please install docutils").
+
+Prefix: Django's own documentation uses `admin/doc/`; this skill and the default site use `admin/docs/`. Both work as long as the prefix is placed before `admin/`; pick one and link to it consistently. The default site serves `/admin/docs/`. Verified with the Django test client (staff user gets 200); not opened in a browser.
 
 ### DjangoDebugToolbar (development only)
 ```python
-# settings.py — enable ONLY when DEBUG is on
+# settings.py: enable ONLY when DEBUG is on
 if DEBUG:
     INSTALLED_APPS += ["debug_toolbar"]
-    MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+    # index 1, NOT 0: ApphookReloadMiddleware must stay first in MIDDLEWARE
+    MIDDLEWARE.insert(1, "debug_toolbar.middleware.DebugToolbarMiddleware")
     INTERNAL_IPS = ["127.0.0.1", "::1"]   # exact IPs only (no CIDR ranges)
 ```
 
 ```python
 # urls.py
-
 from django.conf import settings
 if settings.DEBUG:
     urlpatterns += [path("__debug__/", include("debug_toolbar.urls"))]
 ```
 
-Never install the toolbar unconditionally; gate it on DEBUG.
+Never install the toolbar unconditionally; gate apps, middleware, `INTERNAL_IPS` and the URL include on `DEBUG`. Verified: with `DJANGO_DEBUG` unset none of them are present; with it set all are, and `ApphookReloadMiddleware` is still first.
 
 ### Production hardening checklist
 Run `python manage.py check --deploy` against your production settings; it must report nothing you have not consciously accepted. Verified 2026-10-01 on a scratch project: with the settings below, only W005, W019 and W021 remained.

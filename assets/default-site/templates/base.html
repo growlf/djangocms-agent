@@ -1,0 +1,48 @@
+{% load cms_tags menu_tags sekizai_tags static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>{% page_attribute "page_title" %} | {{ site_name }}</title>
+  <script src="{% static 'js/theme.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/site.css' %}">
+  {% render_block "css" %}
+</head>
+<body class="{% block body_class %}layout-single{% endblock %} d-flex flex-column min-vh-100">
+  {% cms_toolbar %}
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <nav class="navbar navbar-expand-lg border-bottom" aria-label="Main navigation">
+      <div class="container">
+        <a class="navbar-brand site-logo fw-bold" href="/">{{ site_name }}</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#site-nav"
+                aria-controls="site-nav" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="site-nav">
+          <ul class="navbar-nav ms-auto mb-2 mb-lg-0 menu">{% show_menu 0 100 100 100 "menu/menu.html" %}</ul>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main" class="site-main flex-grow-1" tabindex="-1">
+    <div class="{% block container_class %}container py-4 py-lg-5{% endblock %}">
+      {% block main %}<div class="content">{% placeholder "content" %}</div>{% endblock %}
+    </div>
+  </main>
+
+  <footer class="site-footer border-top py-4 mt-auto">
+    <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+      <p class="mb-0">&copy; {% now "Y" %} {{ site_name }}</p>
+      <nav aria-label="Footer navigation">
+        <ul class="nav">{% show_menu 0 0 0 0 "menu/footer_menu.html" %}</ul>
+      </nav>
+    </div>
+  </footer>
+  {% render_block "js" %}
+  <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+</body>
+</html>

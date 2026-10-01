@@ -1,0 +1,170 @@
+/*
+ * Site theme, layered on Bootstrap 5.3 (static/vendor/bootstrap).
+ * The --site-* custom properties are the single source of colour, spacing and type; the block
+ * "Bridge to Bootstrap" maps them onto Bootstrap's --bs-* variables. Light/dark: static/js/theme.js
+ * sets data-bs-theme from prefers-color-scheme; the media query below is the no-JavaScript fallback.
+ */
+
+/* === Design tokens (light) === */
+:root, [data-bs-theme="light"] {
+  --site-color-primary: #1d4ed8;
+  --site-color-on-primary: #ffffff;
+  --site-color-text: #1f2937;
+  --site-color-text-muted: #4b5563;
+  --site-color-bg: #ffffff;
+  --site-color-bg-alt: #f3f4f6;
+  --site-color-border: #d1d5db;
+  --site-color-link: #1d4ed8;
+  --site-color-link-hover: #1e3a8a;
+  --site-color-code-bg: #f3f4f6;
+  --site-color-focus: #1d4ed8;
+  --site-hero-from: #1e3a8a;
+  --site-hero-to: #1d4ed8;
+
+  --site-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --site-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  --site-space-xs: 0.25rem;
+  --site-space-sm: 0.5rem;
+  --site-space-md: 1rem;
+  --site-space-lg: 1.5rem;
+  --site-space-xl: 2rem;
+  --site-space-2xl: 3rem;
+  --site-radius: 0.375rem;
+}
+
+/* === Design tokens (dark) === */
+[data-bs-theme="dark"] {
+  --site-color-primary: #8ab4ff;
+  --site-color-on-primary: #0f172a;
+  --site-color-text: #e5e7eb;
+  --site-color-text-muted: #9ca3af;
+  --site-color-bg: #0f172a;
+  --site-color-bg-alt: #1e293b;
+  --site-color-border: #334155;
+  --site-color-link: #93c5fd;
+  --site-color-link-hover: #bfdbfe;
+  --site-color-code-bg: #1e293b;
+  --site-color-focus: #93c5fd;
+  --site-hero-from: #0b1d4d;
+  --site-hero-to: #1e3a8a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-bs-theme]) {
+    --site-color-primary: #8ab4ff; --site-color-on-primary: #0f172a;
+    --site-color-text: #e5e7eb; --site-color-text-muted: #9ca3af;
+    --site-color-bg: #0f172a; --site-color-bg-alt: #1e293b; --site-color-border: #334155;
+    --site-color-link: #93c5fd; --site-color-link-hover: #bfdbfe; --site-color-code-bg: #1e293b;
+    --site-color-focus: #93c5fd; --site-hero-from: #0b1d4d; --site-hero-to: #1e3a8a;
+  }
+}
+
+/* === Bridge to Bootstrap === */
+:root, [data-bs-theme] {
+  --bs-body-font-family: var(--site-font-sans);
+  --bs-font-monospace: var(--site-font-mono);
+  --bs-body-color: var(--site-color-text);
+  --bs-body-bg: var(--site-color-bg);
+  --bs-secondary-color: var(--site-color-text-muted);
+  --bs-tertiary-bg: var(--site-color-bg-alt);
+  --bs-border-color: var(--site-color-border);
+  --bs-link-color: var(--site-color-link);
+  --bs-link-hover-color: var(--site-color-link-hover);
+  --bs-link-color-rgb: initial;
+  --bs-code-color: inherit;
+  --bs-border-radius: var(--site-radius);
+}
+a { color: var(--site-color-link); }
+a:hover { color: var(--site-color-link-hover); }
+.btn-primary {
+  --bs-btn-bg: var(--site-color-primary); --bs-btn-border-color: var(--site-color-primary);
+  --bs-btn-color: var(--site-color-on-primary);
+  --bs-btn-hover-bg: var(--site-color-link-hover); --bs-btn-hover-border-color: var(--site-color-link-hover);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-active-bg: var(--site-color-link-hover); --bs-btn-active-border-color: var(--site-color-link-hover);
+  --bs-btn-active-color: #fff;
+}
+.btn-outline-primary {
+  --bs-btn-color: var(--site-color-link); --bs-btn-border-color: var(--site-color-primary);
+  --bs-btn-hover-bg: var(--site-color-primary); --bs-btn-hover-border-color: var(--site-color-primary);
+  --bs-btn-hover-color: var(--site-color-on-primary);
+  --bs-btn-active-bg: var(--site-color-primary); --bs-btn-active-color: var(--site-color-on-primary);
+}
+.nav-link.active, .dropdown-item.active { --bs-dropdown-link-active-bg: var(--site-color-primary); }
+.dropdown-item.active { background-color: var(--site-color-primary); color: var(--site-color-on-primary); }
+
+/* === Base === */
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { line-height: 1.6; -webkit-font-smoothing: antialiased; }
+a:focus-visible, button:focus-visible, summary:focus-visible, .dropdown-item:focus-visible {
+  outline: 3px solid var(--site-color-focus);
+  outline-offset: 2px;
+}
+main:focus { outline: none; }
+
+.skip-link {
+  position: absolute; left: var(--site-space-sm); top: -4rem; z-index: 10000;
+  background: var(--site-color-bg); color: var(--site-color-link);
+  padding: var(--site-space-sm) var(--site-space-md); border-radius: var(--site-radius);
+}
+.skip-link:focus { top: var(--site-space-sm); }
+
+/* === Content typography (editor-authored HTML, no Bootstrap classes needed) === */
+.content, .sidebar { min-width: 0; }
+.content :is(h1, h2, h3, h4):not([class]), .sidebar h3 { font-weight: 600; line-height: 1.25; margin: var(--site-space-xl) 0 var(--site-space-md); }
+.content > :first-child, .sidebar .card-body > :first-child { margin-top: 0; }
+.content h1:not([class]) { font-size: 2rem; margin-top: 0; }
+.content h2:not([class]) { font-size: 1.5rem; }
+.content h3:not([class]) { font-size: 1.25rem; }
+.content h4:not([class]) { font-size: 1.05rem; }
+.content blockquote:not([class]) { border-left: 4px solid var(--site-color-border); padding: 0 var(--site-space-md); color: var(--site-color-text-muted); }
+.content img { max-width: 100%; height: auto; }
+code, kbd { background: var(--site-color-code-bg); border: 1px solid var(--site-color-border); border-radius: 0.25rem; padding: 0.05em 0.35em; overflow-wrap: anywhere; font-size: 0.9em; }
+pre { background: var(--site-color-code-bg); border: 1px solid var(--site-color-border); border-radius: var(--site-radius); padding: var(--site-space-md); overflow-x: auto; }
+pre code { background: none; border: 0; padding: 0; overflow-wrap: normal; }
+.content table { width: 100%; border-collapse: collapse; display: block; overflow-x: auto; margin-bottom: var(--site-space-md); }
+.content th, .content td { padding: var(--site-space-sm) var(--site-space-md); border: 1px solid var(--site-color-border); text-align: left; vertical-align: top; }
+.content thead th { background: var(--site-color-bg-alt); }
+.content tbody tr:nth-child(even) { background: var(--site-color-bg-alt); }
+.content .btn { text-decoration: none; }
+
+/* === Header, nav, footer === */
+.site-header .navbar { background: var(--site-color-bg); }
+.site-logo { color: var(--site-color-text); }
+.site-logo:hover { color: var(--site-color-link); }
+.navbar .nav-link.active { font-weight: 600; box-shadow: inset 0 -3px 0 var(--site-color-primary); }
+@media (max-width: 991.98px) { .navbar .nav-link.active { box-shadow: none; border-left: 3px solid var(--site-color-primary); padding-left: 0.5rem; } }
+.dropdown-menu { max-width: 90vw; min-width: 16rem; }
+.dropdown-item { white-space: normal; }
+.site-footer { background: var(--site-color-bg-alt); color: var(--site-color-text-muted); }
+
+/* === Landing hero and CTA band === */
+.hero, .cta-band {
+  background: linear-gradient(135deg, var(--site-hero-from), var(--site-hero-to));
+  color: #fff;
+}
+.hero h1 { font-size: calc(1.8rem + 2.2vw); font-weight: 700; margin-top: 0; }
+.hero .lead { font-size: 1.25rem; opacity: 0.95; }
+.hero a:not(.btn), .cta-band a:not(.btn) { color: #fff; }
+.hero .btn, .cta-band .btn { margin: 0 var(--site-space-sm) var(--site-space-sm) 0; }
+.cta-band .btn { margin-right: 0; margin-left: var(--site-space-xs); margin-right: var(--site-space-xs); }
+.hero p, .cta-band p { color: #fff; }
+
+/* === Plugins === */
+.blockquote-footer { margin-top: 0.25rem; }
+.jumbotron { padding: 2rem; margin-bottom: 1rem; background: var(--site-color-bg-alt); border-radius: var(--site-radius); } /* removed in Bootstrap 5; djangocms-bootstrap5 still emits it */
+.list-group-item > p:last-child, .card-body > p:last-child, .alert > p:last-child, .tab-pane > p:last-child { margin-bottom: 0; }
+
+/* === CMS toolbar === */
+.cms-toolbar { z-index: 9999; }
+
+/* === Print === */
+@media print {
+  .site-header, .site-footer, .skip-link, .sidebar { display: none; }
+  body { font-size: 12pt; color: #000; background: #fff; }
+  a { color: #000; text-decoration: underline; }
+  a[href^="/"]::after { content: " (" attr(href) ")"; font-size: 0.8em; }
+  pre { break-inside: avoid; }
+}
+.sidebar h3 { font-size: 1.25rem; }
