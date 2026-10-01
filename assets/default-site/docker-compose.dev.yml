@@ -1,0 +1,70 @@
+# Development stack: DEBUG on, debug toolbar on, source bind-mounted, runserver with autoreload.
+# Standalone file (NOT an override of docker-compose.yml): its own project name, volumes and port, so
+# starting it can never touch the production-like stack's containers or data:
+#
+#   bin/dev-up.sh          # or: docker compose -f docker-compose.dev.yml up -d --build
+#   bin/dev-down.sh        # stops; keeps volumes (add --volumes to delete them)
+#
+# PostgreSQL (not SQLite) on purpose: same engine as production, so the shared cache table, backups and
+# SQL differences are exercised while developing. Only the app port is published, on 127.0.0.1.
+name: __PROJECT_NAME__-dev
+
+services:
+  db:
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: __PROJECT_NAME___dev
+      POSTGRES_USER: __PROJECT_NAME__
+      POSTGRES_PASSWORD: dev-only-password  # throwaway: this database only exists on the developer's machine
+    volumes:
+      - __PROJECT_NAME___dev_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  app:
+    image: ${DEV_IMAGE:-__PROJECT_NAME__-dev}:latest
+    build:
+      context: .
+      target: dev
+      args:
+        APP_UID: ${APP_UID:-1000}
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["bash", "docker/dev-entrypoint.sh"]
+    environment:
+      DJANGO_DEBUG: "1"
+      DJANGO_DEBUG_TOOLBAR: "1"
+      DJANGO_DEBUG_TOOLBAR_ANY_IP: "1"
+      DJANGO_SECRET_KEY: dev-only-not-a-secret
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:8880,http://127.0.0.1:8880}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      DB_ENGINE: postgres
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: __PROJECT_NAME___dev
+      DB_USER: __PROJECT_NAME__
+      DB_PASSWORD: dev-only-password
+      SITE_DOMAIN: localhost
+      SEED_ON_START: ${SEED_ON_START:-1}
+    ports:
+      - "127.0.0.1:${DEV_PORT:-8880}:8000"
+    volumes:
+      - .:/app
+      - __PROJECT_NAME___dev_media:/app/media
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+volumes:
+  __PROJECT_NAME___dev_pgdata:
+  __PROJECT_NAME___dev_media:

@@ -1,13 +1,17 @@
 # syntax=docker/dockerfile:1
-FROM python:3.12-slim
+# Targets: `production` (the default, last stage; gunicorn, no dev packages) and `dev` (adds
+# requirements-dev.txt; used by docker-compose.dev.yml with the source bind-mounted).
+# The base image is pinned by digest; bin/pin-images.sh refreshes it (done at every release).
+FROM python:3.12-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f AS base
 
+ARG APP_UID=1000
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Non-root runtime user (fixed uid so volume ownership is predictable).
-RUN groupadd --system --gid 1000 app && useradd --system --uid 1000 --gid app --home-dir /app --no-create-home app
+# Non-root runtime user (uid 1000 by default so volume ownership is predictable; override with APP_UID).
+RUN groupadd --system --gid ${APP_UID} app && useradd --system --uid ${APP_UID} --gid app --home-dir /app --no-create-home app
 
 WORKDIR /app
 
@@ -16,6 +20,19 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
+
+FROM base AS dev
+COPY requirements-dev.txt .
+RUN pip install -r requirements-dev.txt
+# The media volume is mounted at /app/media over the bind-mounted source: it must exist in the image and
+# belong to the app user, or Docker creates the volume root-owned and uploads fail.
+RUN mkdir -p /app/media && chown app:app /app/media
+USER app
+EXPOSE 8000
+# The source tree is bind-mounted over /app by docker-compose.dev.yml; the command comes from there.
+
+
+FROM base AS production
 COPY . .
 RUN chmod +x docker/entrypoint.sh \
     && mkdir -p /app/staticfiles /app/media \
