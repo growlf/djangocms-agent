@@ -58,6 +58,13 @@ This single skill covers pages, placeholders, templates, plugins, admin, middlew
 ## CMS Gotchas (from TheNetYeti)
 
 - **`create_page` requires a language code that is in your `LANGUAGES`/`CMS_LANGUAGES`** (the examples here use `en-us`; use whatever your project defines) — no `published=` kwarg. With djangocms-versioning it creates a **draft**; publish with `page.get_admin_content("en").versions.first().publish(user)`. Pass `in_navigation=True` for pages that belong in menus. Set the home page with `with transaction.atomic(): page.set_as_homepage()`.
+- **Language codes are project-specific** — `en-us` in these docs is only an example. A project with `LANGUAGES = [("en", ...)]` must use `"en"` everywhere (`create_page`, `add_plugin`, `PageContent` filters), or lookups silently return nothing.
+- **`create_page(created_by=...)`** — pass a username string or user; `None` crashes on a fresh DB with no superuser. Fall back to a literal like `"python-api"` in seed scripts.
+- **Seed scripts** — key idempotency on `PageUrl(slug=..., language=...)`, not on title (titles are not unique), and wrap each page's create/plugin/homepage work in one `transaction.atomic()` so a failed `add_plugin` can't leave an empty page that later runs skip.
+- **Apphooks** — see `references/cms-api-cheatsheet.md` ("Apphooks"). Three things bite: set `CMSApp.app_name` to match the `app_name` in your `urls.py` and pass `apphook_namespace=` to `create_page` (else `{% url %}` raises `NoReverseMatch`); `cms.middleware.utils.ApphookReloadMiddleware` must be in `MIDDLEWARE`; tests must call `reload_urlconf()` (`from cms.utils.apphook_reload import reload_urlconf`) after creating apphook pages, because the urlconf is cached.
+- **djangocms-versioning is optional** — without it there is no draft/publish step and pages are live on creation; the `.versions.first().publish()` recipe above only applies when it is installed.
+- **Python 3.14** — the `djangocms` installer CLI fails (needs `distutils`/`pytz`, pulls Django 6.x); build the project by hand per `references/project-setup.md`.
+- **`treebeard.E001` warning** on `cms.PageManager` with django-treebeard 5.3.x is upstream (cms 5.1.3); harmless until treebeard 6.
 - **CMS page lookup** — slugs live in `PageUrl`: `PageUrl.objects.get(slug=slug).page`
 - **Re-pointing page templates** — use `PageContent.objects.filter(page=page, language="en-us").first().template`
 - **`{% render_block %}`** — cannot live inside a `{% block %}` (swallows following `{% endblock %}`)

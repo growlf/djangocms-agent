@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Fixed (found by the testsite exercise, 2026-09-30)
+- `skills/djangocms-agent/` now contains `references` and `scripts` symlinks to the repo-level directories. In link-mode installs only `SKILL.md` was visible, so `scripts/visual_check.py` and every `references/` link it names appeared missing.
+- `SKILL.md` gotchas: project-specific language codes, `created_by=None` crash, seed idempotency keyed on slug+language inside `atomic()`, optional djangocms-versioning, Python 3.14 installer failure, upstream `treebeard.E001`.
+- `references/cms-api-cheatsheet.md`: new Apphooks section (`app_name`/`apphook_namespace`, `ApphookReloadMiddleware`, `reload_urlconf()` in tests).
+
 ### Added
 - `references/project-setup.md`: verified `MIDDLEWARE` section (the docs listed none; a project built from them lacked `SecurityMiddleware`, `XFrameOptionsMiddleware`, `LocaleMiddleware` and `ApphookReloadMiddleware`) and a production hardening checklist checked with `manage.py check --deploy`.
 
