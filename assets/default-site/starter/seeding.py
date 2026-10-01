@@ -14,6 +14,20 @@ from djangocms_versioning.models import Version
 LANG = "en"
 
 
+def ensure_site():
+    """Point the django Site (SITE_ID) at this project: name = SITE_NAME, domain = $SITE_DOMAIN (default
+    localhost). Without it the admin and CMS toolbar keep showing the stock 'example.com'. Idempotent."""
+    import os
+
+    from django.conf import settings
+    from django.contrib.sites.models import Site
+
+    domain = os.environ.get("SITE_DOMAIN", "").strip() or "localhost"
+    site, _ = Site.objects.update_or_create(
+        pk=settings.SITE_ID, defaults={"name": settings.SITE_NAME[:50], "domain": domain[:100]})
+    return site
+
+
 def get_user():
     """A superuser if there is one, else a system user (publishing needs a real user object)."""
     User = get_user_model()

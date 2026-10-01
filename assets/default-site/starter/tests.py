@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 from io import StringIO
+from unittest import mock
 
 from cms.models import CMSPlugin, Page, PageUrl
 from django.conf import settings
@@ -42,6 +43,23 @@ class SeedTests(TestCase):
         self.assertEqual(first, (Page.objects.count(), CMSPlugin.objects.count()))
         for slug in SLUGS:
             self.assertEqual(PageUrl.objects.filter(slug=slug, language="en").count(), 1, slug)
+
+    def test_site_is_named_after_the_project_and_idempotent(self):
+        from django.contrib.sites.models import Site
+        seed()
+        site = Site.objects.get(pk=settings.SITE_ID)
+        self.assertEqual(site.name, settings.SITE_NAME[:50])
+        self.assertEqual(site.domain, "localhost")
+        self.assertNotEqual(site.domain, "example.com")
+        seed()
+        self.assertEqual(Site.objects.count(), 1)
+        self.assertEqual(Site.objects.get(pk=settings.SITE_ID).domain, "localhost")
+
+    def test_site_domain_comes_from_env(self):
+        from django.contrib.sites.models import Site
+        with mock.patch.dict(os.environ, {"SITE_DOMAIN": "www.example.org"}):
+            seed()
+        self.assertEqual(Site.objects.get(pk=settings.SITE_ID).domain, "www.example.org")
 
     def test_everything_is_published(self):
         seed()

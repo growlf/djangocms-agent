@@ -17,6 +17,10 @@ renders every verified plugin.
     venv/bin/python manage.py seed_site
     venv/bin/python manage.py runserver 8010
 
+The seed commands also set the django Site (shown in the admin and the CMS toolbar, otherwise the stock
+`example.com`) to the site name and to the domain in `SITE_DOMAIN` (default `localhost`; re-run `seed_site` after
+changing it).
+
 Open http://localhost:8010/ (use the first free port at or above 8000; check with `ss -ltn`) and sign in at http://localhost:8010/admin/. Edit pages by adding
 `?edit` to a URL while logged in. `DJANGO_DEBUG=1` is development only; production needs
 `DJANGO_SECRET_KEY` and `DJANGO_ALLOWED_HOSTS` (see `.env.example`).
